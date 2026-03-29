@@ -12,9 +12,8 @@ file:
     allowed-extensions: txt,md
 
 milvus:
-
-  host: 100.77.244.98
-  port: 19530
+  host: ${MILVUS_HOST:localhost}
+  port: ${MILVUS_PORT:19530}
   username: ""
   password: ""
   database: default
@@ -36,7 +35,7 @@ spring:
           min-idle: 5
   ai:
     dashscope:
-      api-key: ${DASHSCOPE_API_KEY:sk-6d1d323ffcc84e2eb172f777c945e819}  # 从环境变量读取或使用默认值
+      api-key: ${DASHSCOPE_API_KEY}  # 必填：阿里云 AI 服务密钥
       chat:
         options:
           timeout: 180000  # 超时时间180秒（3分钟）
@@ -65,7 +64,7 @@ spring:
 # 阿里云 DashScope Embedding API 配置
 dashscope:
   api:
-    key: ${DASHSCOPE_API_KEY:sk-6d1d323ffcc84e2eb172f777c945e819}  # 从环境变量读取或使用默认值（用于自定义配置）
+    key: ${DASHSCOPE_API_KEY}  # 必填：阿里云 AI 服务密钥
   embedding:
     model: text-embedding-v4  # 阿里云文本向量化模型
 
@@ -82,7 +81,7 @@ rag:
 
 # Prometheus 配置
 prometheus:
-  base-url: http://100.77.244.98:9090
+  base-url: ${PROMETHEUS_URL:http://localhost:9090}
   timeout: 10  # 超时时间（秒）
   mock-enabled: true  # 是否启用 Mock 模式（用于测试）
 

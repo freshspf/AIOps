@@ -56,3 +56,8 @@ uploads/
 /server.pid
 
 简历以及面试话术/
+
+### Application Config ###
+application.yml
+application-*.yml
+!application.yml.template
