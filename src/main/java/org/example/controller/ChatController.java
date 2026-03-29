@@ -94,15 +94,15 @@ public class ChatController {
 
             logger.info("开始 ReactAgent 对话（支持自动工具调用）");
             
-            // 构建系统提示词（包含历史消息）
-            String systemPrompt = chatService.buildSystemPrompt(history);
-            
+            // 构建系统提示词（包含历史摘要和近期消息）
+            String systemPrompt = chatService.buildSystemPrompt(history, session.getSummary());
+
             // 创建 ReactAgent
             ReactAgent agent = chatService.createReactAgent(chatModel, systemPrompt);
-            
+
             // 执行对话
             String fullAnswer = chatService.executeChat(agent, request.getQuestion());
-            
+
             // 更新会话历史
             session.addMessage(request.getQuestion(), fullAnswer);
             // 同步到 Redis
@@ -138,10 +138,8 @@ public class ChatController {
             chatSessionService.clearSessionHistory(request.getId());
             if (session != null) {
                 session.clearHistory();
-                return ResponseEntity.ok(ApiResponse.success("会话历史已清空"));
-            } else {
-                return ResponseEntity.ok(ApiResponse.success("会话历史已清空（Redis）"));
             }
+            return ResponseEntity.ok(ApiResponse.success("会话历史已清空"));
 
         } catch (Exception e) {
             logger.error("清空会话历史失败", e);
@@ -189,8 +187,8 @@ public class ChatController {
 
                 logger.info("开始 ReactAgent 流式对话（支持自动工具调用）");
                 
-                // 构建系统提示词（包含历史消息）
-                String systemPrompt = chatService.buildSystemPrompt(history);
+                // 构建系统提示词（包含历史摘要和近期消息）
+                String systemPrompt = chatService.buildSystemPrompt(history, session.getSummary());
                 
                 // 创建 ReactAgent
                 ReactAgent agent = chatService.createReactAgent(chatModel, systemPrompt);
@@ -260,9 +258,9 @@ public class ChatController {
                             // 更新会话历史
                             session.addMessage(request.getQuestion(), fullAnswer);
                             // 同步到 Redis
-                            chatSessionService.addMessage(request.getId(), request.getQuestion(), fullAnswer);
+                            chatSessionService.addMessage(session.getSessionId(), request.getQuestion(), fullAnswer);
                             logger.info("已更新会话历史 - SessionId: {}, 当前消息对数: {}",
-                                request.getId(), session.getMessagePairCount());
+                                session.getSessionId(), session.getMessagePairCount());
                             
                             // 发送完成标记
                             emitter.send(SseEmitter.event()
@@ -396,16 +394,27 @@ public class ChatController {
         try {
             logger.info("收到获取会话信息请求 - SessionId: {}", sessionId);
 
+            // 先查内存
             SessionInfo session = sessions.get(sessionId);
             if (session != null) {
                 SessionInfoResponse response = new SessionInfoResponse();
                 response.setSessionId(sessionId);
                 response.setMessagePairCount(session.getMessagePairCount());
-                response.setCreateTime(session.createTime);
+                response.setCreateTime(session.getCreateTime());
                 return ResponseEntity.ok(ApiResponse.success(response));
-            } else {
-                return ResponseEntity.ok(ApiResponse.error("会话不存在"));
             }
+
+            // 内存没有，查 Redis
+            org.example.dto.ChatSession redisSession = chatSessionService.getOrCreateSession(sessionId);
+            if (redisSession != null) {
+                SessionInfoResponse response = new SessionInfoResponse();
+                response.setSessionId(sessionId);
+                response.setMessagePairCount(redisSession.getMessageCount());
+                response.setCreateTime(redisSession.getCreateTime());
+                return ResponseEntity.ok(ApiResponse.success(response));
+            }
+
+            return ResponseEntity.ok(ApiResponse.error("会话不存在"));
 
         } catch (Exception e) {
             logger.error("获取会话信息失败", e);
@@ -486,12 +495,22 @@ public class ChatController {
         // 确保 Redis 中有会话记录
         chatSessionService.getOrCreateSession(sessionId);
 
-        // 从 Redis 加载历史消息到内存
-        List<ChatMessage> history = chatSessionService.getSessionHistory(sessionId);
-        if (!history.isEmpty()) {
-            logger.info("从 Redis 恢复会话 {} 的历史消息，数量: {}", sessionId, history.size());
-            for (int i = 0; i < history.size(); i++) {
-                ChatMessage msg = history.get(i);
+        // 从 Redis 恢复，超出窗口的旧消息做摘要压缩
+        ChatSessionService.RecentMessages recovered = chatSessionService.recoverSession(sessionId, MAX_WINDOW_SIZE);
+        if (!recovered.getRecentMessages().isEmpty()) {
+            logger.info("从 Redis 恢复会话 {} 的最近消息，数量: {}", sessionId, recovered.getRecentMessages().size());
+
+            // 如果有旧消息需要压缩，调用 LLM 生成摘要
+            if (recovered.getOldConversationText() != null) {
+                String summary = chatService.summarizeConversation(recovered.getOldConversationText());
+                if (summary != null) {
+                    sessionInfo.setSummary(summary);
+                    logger.info("会话 {} 历史摘要已生成", sessionId);
+                }
+            }
+
+            // 加载最近消息到内存
+            for (ChatMessage msg : recovered.getRecentMessages()) {
                 Map<String, String> map = new HashMap<>();
                 map.put("role", msg.getRole());
                 map.put("content", msg.getContent());
@@ -515,6 +534,8 @@ public class ChatController {
         private final List<Map<String, String>> messageHistory;
         private final long createTime;
         private final ReentrantLock lock;
+        // 历史对话摘要（超出窗口的早期消息由 LLM 压缩生成）
+        private volatile String summary;
 
         public SessionInfo(String sessionId) {
             this.sessionId = sessionId;
@@ -611,6 +632,14 @@ public class ChatController {
          */
         public long getCreateTime() {
             return createTime;
+        }
+
+        public String getSummary() {
+            return summary;
+        }
+
+        public void setSummary(String summary) {
+            this.summary = summary;
         }
     }
 

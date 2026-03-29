@@ -12,6 +12,7 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * 聊天会话管理服务
@@ -165,6 +166,75 @@ public class ChatSessionService {
      */
     public SessionListResponse listSessions() {
         return listSessions(1, DEFAULT_PAGE_SIZE);
+    }
+
+    // ==================== 会话恢复 ====================
+
+    /**
+     * 从 Redis 恢复会话，超出窗口的旧消息通过 LLM 摘要压缩
+     *
+     * @param sessionId  会话ID
+     * @param recentPairs 保留的最近对话轮数
+     * @return RecentMessages 包含摘要（可为null）和最近消息列表
+     */
+    public RecentMessages recoverSession(String sessionId, int recentPairs) {
+        // 从 Redis 加载全部消息
+        List<ChatMessage> allMessages = repository.getMessages(sessionId);
+
+        if (allMessages.isEmpty()) {
+            return new RecentMessages(null, new ArrayList<>());
+        }
+
+        int recentLimit = recentPairs * 2; // 每对 = 1条user + 1条assistant
+
+        if (allMessages.size() <= recentLimit) {
+            // 没有超出窗口，全部保留
+            return new RecentMessages(null, allMessages);
+        }
+
+        // 超出窗口：拆分为旧消息和最近消息
+        int splitIndex = allMessages.size() - recentLimit;
+        List<ChatMessage> oldMessages = allMessages.subList(0, splitIndex);
+        List<ChatMessage> recentMessages = allMessages.subList(splitIndex, allMessages.size());
+
+        // 将旧消息转为文本，用于 LLM 摘要
+        String conversationText = oldMessages.stream()
+                .map(msg -> ("user".equals(msg.getRole()) ? "用户: " : "助手: ") + msg.getContent())
+                .collect(Collectors.joining("\n"));
+
+        log.info("会话 {} 超出窗口，旧消息 {} 条，将生成摘要压缩", sessionId, oldMessages.size());
+
+        // 注意：摘要由 ChatController 调用 ChatService.summarizeConversation() 生成
+        // 这里返回旧消息文本，由调用方处理 LLM 调用
+        return new RecentMessages(conversationText, new ArrayList<>(recentMessages));
+    }
+
+    /**
+     * 恢复结果
+     */
+    public static class RecentMessages {
+        /**
+         * 需要摘要压缩的旧对话文本（null 表示不需要压缩）
+         */
+        private final String oldConversationText;
+
+        /**
+         * 保留在窗口内的最近消息
+         */
+        private final List<ChatMessage> recentMessages;
+
+        public RecentMessages(String oldConversationText, List<ChatMessage> recentMessages) {
+            this.oldConversationText = oldConversationText;
+            this.recentMessages = recentMessages;
+        }
+
+        public String getOldConversationText() {
+            return oldConversationText;
+        }
+
+        public List<ChatMessage> getRecentMessages() {
+            return recentMessages;
+        }
     }
 
     // ==================== 辅助方法 ====================

@@ -17,8 +17,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.chat.messages.SystemMessage;
+
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 聊天服务
@@ -87,6 +91,16 @@ public class ChatService {
      * @return 完整的系统提示词
      */
     public String buildSystemPrompt(List<Map<String, String>> history) {
+        return buildSystemPrompt(history, null);
+    }
+
+    /**
+     * 构建系统提示词（包含历史摘要和近期消息）
+     * @param history 历史消息列表
+     * @param summary 历史对话摘要（可为null）
+     * @return 完整的系统提示词
+     */
+    public String buildSystemPrompt(List<Map<String, String>> history, String summary) {
         StringBuilder systemPromptBuilder = new StringBuilder();
         
         // 基础系统提示
@@ -96,6 +110,13 @@ public class ChatService {
         systemPromptBuilder.append("当用户需要查询 Prometheus 告警、监控指标或系统告警状态时，使用 queryPrometheusAlerts 工具。\n");
         systemPromptBuilder.append("当用户需要查询腾讯云日志时，请调用腾讯云mcp服务查询,默认查询地域ap-guangzhou,查询时间范围为近一个月。\n\n");
         
+        // 添加历史摘要
+        if (summary != null && !summary.isEmpty()) {
+            systemPromptBuilder.append("--- 早期对话摘要 ---\n");
+            systemPromptBuilder.append(summary).append("\n");
+            systemPromptBuilder.append("--- 摘要结束 ---\n\n");
+        }
+
         // 添加历史消息
         if (!history.isEmpty()) {
             systemPromptBuilder.append("--- 对话历史 ---\n");
@@ -176,5 +197,29 @@ public class ChatService {
         String answer = response.getText();
         logger.info("ReactAgent 对话完成，答案长度: {}", answer.length());
         return answer;
+    }
+
+    /**
+     * 使用 LLM 对对话历史进行摘要压缩
+     * @param conversationHistory 对话历史文本
+     * @return 压缩后的摘要
+     */
+    public String summarizeConversation(String conversationHistory) {
+        try {
+            DashScopeApi dashScopeApi = createDashScopeApi();
+            DashScopeChatModel chatModel = createChatModel(dashScopeApi, 0.3, 500, 0.9);
+
+            String prompt = "请对以下对话历史进行简洁的摘要总结，保留关键信息和上下文，不超过200字：\n\n"
+                    + conversationHistory;
+
+            org.springframework.ai.chat.messages.Message message = new SystemMessage(prompt);
+            var response = chatModel.call(new Prompt(List.of(message)));
+            String summary = response.getResult().getOutput().getText();
+            logger.info("对话摘要生成完成，摘要长度: {}", summary.length());
+            return summary;
+        } catch (Exception e) {
+            logger.error("生成对话摘要失败", e);
+            return null;
+        }
     }
 }
