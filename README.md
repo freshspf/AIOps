@@ -193,19 +193,14 @@ docker run -d --name super-biz-redis -p 6379:6379 redis:7-alpine
 
 ### 2. 启动应用
 
-**方法一：手动启动**
+**启动应用**
 ```bash
 # 1. 启动向量数据库
-docker compose up -d -f vector-database.yml
+docker compose up -d -f docker-compose.yml
 
 # 2. 启动服务
 mvn clean install
 mvn spring-boot:run
-```
-
-**方法二：一键启动**
-```bash
-make init  # 自动启动向量数据库并上传运维文档到向量库
 ```
 
 ### 3. 使用示例

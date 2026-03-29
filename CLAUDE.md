@@ -33,18 +33,6 @@ npm run build    # Production build
 npm run lint     # ESLint
 ```
 
-### Infrastructure & Shortcuts (Makefile)
-```bash
-make init        # One-shot: start Milvus Docker → start backend → upload aiops-docs
-make up / down   # Start / stop Milvus Docker (vector-database.yml)
-make start       # Start Spring Boot in background (nohup)
-make stop        # Stop Spring Boot
-make restart     # Stop + start + wait for readiness
-make upload      # Upload all aiops-docs/*.md to vector DB
-make check       # Health check against /milvus/health
-make status      # Show Docker container status
-```
-
 No test suites currently exist in this project.
 
 ## Architecture
