@@ -77,7 +77,20 @@ document:
 # RAG 配置
 rag:
   top-k: 3  # 检索返回的最相似文档数量
+  recall-top-k: 12  # Milvus 粗排候选数
+  final-top-k: 4  # rerank 后最终送给 LLM 的候选数
+  per-doc-cap: 2  # 单文档最多保留的 chunk 数
   model: "qwen3-max"  # 大语言模型名称
+  search:
+    nprobe: 16
+  rerank:
+    enabled: true
+    provider: dashscope
+    model: qwen3-rerank
+    base-url: https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank
+    timeout-ms: 10000
+    max-input-chars: 1200
+    instruct: "Given a user query, retrieval a list of passages that are relevant to the query"
 
 # Prometheus 配置
 prometheus:

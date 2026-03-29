@@ -1,5 +1,7 @@
 package com.spf.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.milvus.client.MilvusServiceClient;
 import io.milvus.grpc.SearchResults;
 import io.milvus.param.R;
@@ -13,11 +15,14 @@ import com.spf.constant.MilvusConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 向量搜索服务
@@ -33,6 +38,11 @@ public class VectorSearchService {
 
     @Autowired
     private VectorEmbeddingService embeddingService;
+
+    @Value("${rag.search.nprobe:16}")
+    private int nprobe;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * 搜索相似文档
@@ -71,7 +81,7 @@ public class VectorSearchService {
                     .withTopK(topK)
                     .withMetricType(io.milvus.param.MetricType.L2)
                     .withOutFields(List.of("id", "content", "metadata"))
-                    .withParams("{\"nprobe\":10}")
+                    .withParams(String.format("{\"nprobe\":%d}", nprobe))
                     .build();
 
             // 3. 执行搜索
@@ -89,12 +99,21 @@ public class VectorSearchService {
                 SearchResult result = new SearchResult();
                 result.setId((String) wrapper.getIDScore(0).get(i).get("id"));
                 result.setContent((String) wrapper.getFieldData("content", 0).get(i));
-                result.setScore(wrapper.getIDScore(0).get(i).getScore());
+                float rawScore = wrapper.getIDScore(0).get(i).getScore();
+                result.setRawScore(rawScore);
+                result.setScore(normalizeL2Score(rawScore));
                 
                 // 解析 metadata
                 Object metadataObj = wrapper.getFieldData("metadata", 0).get(i);
                 if (metadataObj != null) {
-                    result.setMetadata(metadataObj.toString());
+                    String metadataJson = metadataObj.toString();
+                    result.setMetadata(metadataJson);
+                    Map<String, Object> metadataMap = parseMetadata(metadataJson);
+                    result.setMetadataMap(metadataMap);
+                    result.setSource(asString(metadataMap.get("_source")));
+                    result.setFileName(asString(metadataMap.get("_file_name")));
+                    result.setTitle(asString(metadataMap.get("title")));
+                    result.setChunkIndex(asInteger(metadataMap.get("chunkIndex")));
                 }
                 
                 results.add(result);
@@ -118,7 +137,44 @@ public class VectorSearchService {
         private String id;
         private String content;
         private float score;
+        private float rawScore;
         private String metadata;
+        private Map<String, Object> metadataMap = new LinkedHashMap<>();
+        private String source;
+        private String fileName;
+        private String title;
+        private Integer chunkIndex;
 
+    }
+
+    private float normalizeL2Score(float rawScore) {
+        return 1.0F / (1.0F + Math.max(rawScore, 0.0F));
+    }
+
+    private Map<String, Object> parseMetadata(String metadataJson) {
+        try {
+            return objectMapper.readValue(metadataJson, new TypeReference<>() {});
+        } catch (Exception e) {
+            logger.warn("解析 metadata 失败: {}", metadataJson, e);
+            return new LinkedHashMap<>();
+        }
+    }
+
+    private String asString(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private Integer asInteger(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

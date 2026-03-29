@@ -9,6 +9,7 @@ import com.alibaba.dashscope.exception.ApiException;
 import com.alibaba.dashscope.exception.InputRequiredException;
 import com.alibaba.dashscope.exception.NoApiKeyException;
 import com.alibaba.dashscope.utils.Constants;
+import com.spf.dto.RetrievedChunk;
 import io.reactivex.Flowable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,13 +32,10 @@ public class RagService {
     private static final Logger logger = LoggerFactory.getLogger(RagService.class);
 
     @Autowired
-    private VectorSearchService vectorSearchService;
+    private RetrievalPipelineService retrievalPipelineService;
 
     @Value("${dashscope.api.key}")
     private String apiKey;
-
-    @Value("${rag.top-k:3}")
-    private int topK;
 
     @Value("${rag.model:qwen3-30b-a3b-thinking-2507}")
     private String model;
@@ -53,7 +51,7 @@ public class RagService {
         // 创建 Generation 实例
         generation = new Generation();
         
-        logger.info("RAG 服务初始化完成，model: {}, topK: {}", model, topK);
+        logger.info("RAG 服务初始化完成，model: {}", model);
     }
 
     /**
@@ -78,8 +76,7 @@ public class RagService {
             logger.info("收到 RAG 流式查询: {}", question);
 
             // 1. 从向量数据库检索相关文档
-            List<VectorSearchService.SearchResult> searchResults = 
-                vectorSearchService.searchSimilarDocuments(question, topK);
+            List<RetrievedChunk> searchResults = retrievalPipelineService.retrieve(question);
 
             // 发送检索结果
             callback.onSearchResults(searchResults);
@@ -106,12 +103,18 @@ public class RagService {
     /**
      * 构建上下文
      */
-    private String buildContext(List<VectorSearchService.SearchResult> searchResults) {
+    private String buildContext(List<RetrievedChunk> searchResults) {
         StringBuilder context = new StringBuilder();
         
         for (int i = 0; i < searchResults.size(); i++) {
-            VectorSearchService.SearchResult result = searchResults.get(i);
+            RetrievedChunk result = searchResults.get(i);
             context.append("【参考资料 ").append(i + 1).append("】\n");
+            if (result.getTitle() != null && !result.getTitle().isBlank()) {
+                context.append("标题: ").append(result.getTitle()).append("\n");
+            }
+            if (result.getFileName() != null && !result.getFileName().isBlank()) {
+                context.append("来源文件: ").append(result.getFileName()).append("\n");
+            }
             context.append(result.getContent()).append("\n\n");
         }
         
@@ -224,7 +227,7 @@ public class RagService {
      * 流式回调接口
      */
     public interface StreamCallback {
-        void onSearchResults(List<VectorSearchService.SearchResult> results);
+        void onSearchResults(List<RetrievedChunk> results);
         void onReasoningChunk(String chunk);
         void onContentChunk(String chunk);
         void onComplete(String fullContent, String fullReasoning);
