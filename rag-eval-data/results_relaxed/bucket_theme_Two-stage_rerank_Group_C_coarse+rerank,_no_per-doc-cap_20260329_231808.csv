@@ -1,0 +1,6 @@
+theme,Hit@3,Total,Hit@3 Rate,MRR,Avg Latency (ms)
+cpu,6,6,100.00%,0.9167,1223.3
+disk,6,6,100.00%,1.0000,1146.8
+memory,6,6,100.00%,0.9167,1419.0
+service_unavailable,6,6,100.00%,0.9167,1141.3
+slow_response,6,6,100.00%,0.8056,1140.1

@@ -1,0 +1,31 @@
+query_id,query_text,query_type,target_doc,target_theme,difficulty
+CPU_001,HighCPUUsage 告警怎么排查,keyword,cpu_high_usage.md,cpu,easy
+CPU_002,线上 CPU 跑满了，怎么快速定位是哪段代码的问题,paraphrase,cpu_high_usage.md,cpu,medium
+CPU_003,单机 CPU 飙升到 90% 以上，第一步的止血操作是什么,step,cpu_high_usage.md,cpu,medium
+CPU_004,Java 进程把 CPU 打满了，怎么把 jstack 和 top 的线程映射起来,detail,cpu_high_usage.md,cpu,hard
+CPU_005,Go 服务由于死循环导致 CPU 占满，怎么抓取 pprof 火焰图,detail,cpu_high_usage.md,cpu,hard
+CPU_006,频繁 GC 会导致 CPU 飙高吗，怎么看是不是序列化大对象导致的,paraphrase,cpu_high_usage.md,cpu,hard
+MEM_001,MemoryHighUsage 告警排查思路,keyword,memory_high_usage.md,memory,easy
+MEM_002,Pod 的容器内存快满了，但是进程一直没发生 OOM 是为什么,paraphrase,memory_high_usage.md,memory,medium
+MEM_003,Java 频繁触发 OOM 被杀，怎么配置参数让它死前自动保留现场,step,memory_high_usage.md,memory,medium
+MEM_004,Go 程序的堆内存一直在缓慢上涨，怎么排查是不是发生了内存泄漏,detail,memory_high_usage.md,memory,hard
+MEM_005,发生 OOM 之后，怎么查是不是加载了超大的战报数据导致的,detail,memory_high_usage.md,memory,medium
+MEM_006,内存使用率到 95% 且马上要触发限流了，为了防止雪崩应该做啥,step,memory_high_usage.md,memory,hard
+SLW_001,接口慢响应 SlowResponse 怎么查,keyword,slow_response.md,slow_response,easy
+SLW_002,监控看板上 P99 飙高但 P50 正常，这一般说明什么问题,paraphrase,slow_response.md,slow_response,medium
+SLW_003,排查响应慢的接口时，应该怎么看 SkyWalking 的 Trace 链路,step,slow_response.md,slow_response,medium
+SLW_004,MySQL 没走索引退化成全表扫描，导致接口大量超时怎么紧急处理,detail,slow_response.md,slow_response,hard
+SLW_005,HikariCP 连接池耗尽会导致接口响应变慢吗，怎么看是不是有慢 SQL 占着不放,detail,slow_response.md,slow_response,hard
+SLW_006,城战发兵接口特别慢，怎么定位是不是 Redis 的 BigKey 访问超时引起的,detail,slow_response.md,slow_response,hard
+ERR_001,服务不可用 5xx 报错怎么应急处理,keyword,service_unavailable.md,service_unavailable,easy
+ERR_002,API 网关大量报 502 Bad Gateway 是什么原因，下游进程挂了吗,paraphrase,service_unavailable.md,service_unavailable,medium
+ERR_003,大地图突发大流量导致服务报 503 拒绝服务，怎么快速止血恢复,step,service_unavailable.md,service_unavailable,medium
+ERR_004,刚上完新版本就大面积报 504 Gateway Timeout，第一步应该怎么办,step,service_unavailable.md,service_unavailable,easy
+ERR_005,怎么看服务器进程是不是因为内存太大被 Linux 的 OOM Killer 强杀了,detail,service_unavailable.md,service_unavailable,hard
+ERR_006,大面积报 500 错误时，怎么去应用日志里排查没捕获的全局空指针异常,detail,service_unavailable.md,service_unavailable,medium
+DSK_001,DiskHighUsage 磁盘使用率告警怎么清理,keyword,disk_high_usage.md,disk,easy
+DSK_002,磁盘空间提示 No space left on device，但 df -h 看还有剩余是怎么回事,paraphrase,disk_high_usage.md,disk,hard
+DSK_003,怎么查 Linux 系统里到底是哪个目录占用的磁盘空间最大,step,disk_high_usage.md,disk,medium
+DSK_004,磁盘 io 利用率百分百（util 很高），怎么看是哪个进程在疯狂读写,detail,disk_high_usage.md,disk,hard
+DSK_005,我用 rm 删除了好几个 GB 的大日志文件，但磁盘空间还是没释放怎么解决,detail,disk_high_usage.md,disk,hard
+DSK_006,因为产生了几百万个临时小文件导致 Inode 耗尽，怎么安全删除它们,detail,disk_high_usage.md,disk,hard

@@ -1,0 +1,5 @@
+query_type,Hit@3,Total,Hit@3 Rate,MRR,Avg Latency (ms)
+detail,11,12,91.67%,0.7778,1215.8
+keyword,5,5,100.00%,0.7000,1263.7
+paraphrase,6,6,100.00%,0.8333,1230.6
+step,7,7,100.00%,0.8571,1161.5

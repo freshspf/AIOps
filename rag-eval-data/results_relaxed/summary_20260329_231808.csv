@@ -1,0 +1,3 @@
+Pipeline,Hit@1,Hit@1 Rate,Hit@3,Hit@3 Rate,MRR,Avg Latency (ms)
+Milvus top3 (Group A: coarse baseline),20,66.67%,26,86.67%,0.7667,528.0
+"Two-stage rerank (Group C: coarse+rerank, no per-doc-cap)",25,83.33%,30,100.00%,0.9111,1214.1

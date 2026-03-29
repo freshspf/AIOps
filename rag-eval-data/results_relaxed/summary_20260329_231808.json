@@ -1,0 +1,24 @@
+{
+  "timestamp": "20260329_231808",
+  "min_relevance_level": 1,
+  "pipelines": {
+    "Milvus top3 (Group A: coarse baseline)": {
+      "total_queries": 30,
+      "hit_at_1": 20,
+      "hit_at_1_rate": 0.6666666666666666,
+      "hit_at_3": 26,
+      "hit_at_3_rate": 0.8666666666666667,
+      "mrr": 0.7666666666666667,
+      "avg_latency_ms": 528.0300696690878
+    },
+    "Two-stage rerank (Group C: coarse+rerank, no per-doc-cap)": {
+      "total_queries": 30,
+      "hit_at_1": 25,
+      "hit_at_1_rate": 0.8333333333333334,
+      "hit_at_3": 30,
+      "hit_at_3_rate": 1.0,
+      "mrr": 0.9111111111111112,
+      "avg_latency_ms": 1214.0829642613728
+    }
+  }
+}
