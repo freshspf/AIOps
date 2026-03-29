@@ -189,29 +189,27 @@ export function AiOpsDialog({ open, onOpenChange }: AiOpsDialogProps) {
             {/* 内容展示 */}
             <ScrollArea className="flex-1 p-4" ref={scrollRef}>
               {currentContent ? (
-                <div className="prose prose-sm dark:prose-invert max-w-none">
+                <div className="prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
                       code: ({ node, inline, className, children, ...props }) => {
                         return !inline ? (
-                          <code
-                            className={cn(
-                              'block rounded-lg p-3 text-sm',
-                              'bg-slate-950 dark:bg-slate-900',
-                              'border border-slate-800',
-                              className
-                            )}
-                            {...props}
-                          >
-                            {children}
-                          </code>
+                          <div className="relative group/code rounded-lg overflow-hidden my-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                            <code
+                              className={cn(
+                                'block p-4 text-sm font-mono overflow-x-auto text-foreground',
+                                className
+                              )}
+                              {...props}
+                            >
+                              {children}
+                            </code>
+                          </div>
                         ) : (
                           <code
                             className={cn(
-                              'px-1.5 py-0.5 rounded text-sm',
-                              'bg-slate-200 dark:bg-slate-800',
-                              'font-mono',
+                              'inline-code font-mono text-sm',
                               className
                             )}
                             {...props}
@@ -220,21 +218,52 @@ export function AiOpsDialog({ open, onOpenChange }: AiOpsDialogProps) {
                           </code>
                         )
                       },
-                      h1: ({ children }) => <h1 className="text-lg font-semibold mb-2">{children}</h1>,
-                      h2: ({ children }) => <h2 className="text-base font-semibold mb-2">{children}</h2>,
-                      h3: ({ children }) => <h3 className="text-sm font-semibold mb-2">{children}</h3>,
+                      p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-700 dark:text-slate-300">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc pl-5 mb-3 space-y-1 text-slate-700 dark:text-slate-300">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 space-y-1 text-slate-700 dark:text-slate-300">{children}</ol>,
+                      li: ({ children }) => <li className="text-slate-700 dark:text-slate-300">{children}</li>,
+                      h1: ({ children }) => (
+                        <h1 className="text-xl font-bold mb-3 mt-4 text-slate-900 dark:text-slate-100 pb-2 border-b border-slate-200 dark:border-slate-700">
+                          {children}
+                        </h1>
+                      ),
+                      h2: ({ children }) => (
+                        <h2 className="text-lg font-bold mb-2 mt-4 text-slate-900 dark:text-slate-100">
+                          {children}
+                        </h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 className="text-base font-semibold mb-2 mt-3 text-slate-900 dark:text-slate-100">
+                          {children}
+                        </h3>
+                      ),
+                      a: ({ children, href }) => (
+                        <a
+                          href={href}
+                          className="text-amber-600 dark:text-amber-400 font-medium underline underline-offset-2 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {children}
+                        </a>
+                      ),
+                      blockquote: ({ children }) => (
+                        <blockquote className="border-l-3 border-amber-500/50 pl-4 italic my-3 text-slate-600 dark:text-slate-400 bg-amber-50/50 dark:bg-amber-950/20 py-2 rounded-r">
+                          {children}
+                        </blockquote>
+                      ),
                     }}
                   >
                     {currentContent}
                   </ReactMarkdown>
                   {isRunning && (
-                    <span className="inline-block w-2 h-4 bg-primary/60 animate-pulse ml-1" />
+                    <span className="inline-block w-2 h-4 bg-amber-500 animate-pulse ml-1" />
                   )}
                 </div>
               ) : (
                 <div className="h-full flex items-center justify-center text-center text-muted-foreground">
                   <div className="space-y-3 max-w-sm">
-                    <Brain className="w-12 h-12 mx-auto text-primary/20" />
+                    <Brain className="w-12 h-12 mx-auto text-amber-500/30" />
                     <p className="text-sm">点击"开始分析"按钮启动 AI 运维分析</p>
                     <p className="text-xs">系统将自动分析告警、日志、指标等数据</p>
                   </div>

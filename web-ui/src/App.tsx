@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { MessageList } from '@/components/chat/MessageList'
@@ -13,11 +13,11 @@ function App() {
   const { currentMessages, isStreaming } = useChat()
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 overflow-hidden">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -35,33 +35,24 @@ function App() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="h-14 border-b border-border bg-card/50 backdrop-blur-sm flex items-center px-4 gap-3">
+        <header className="h-14 border-b border-border/40 bg-background/80 backdrop-blur-xl flex items-center px-4 gap-3">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className="lg:hidden h-9 w-9 rounded-lg"
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
             {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </Button>
 
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-              <svg
-                className="w-3 h-3 text-primary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <h1 className="font-display font-semibold">SuperBizAgent</h1>
+            <div>
+              <h1 className="font-display font-bold text-sm">SuperBizAgent</h1>
+              <p className="text-[10px] text-muted-foreground">AI 智能运维助手</p>
+            </div>
           </div>
         </header>
 

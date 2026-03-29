@@ -44,17 +44,17 @@ export function ChatInput({ onUpload }: ChatInputProps) {
 
   return (
     <>
-      <div className="border-t border-border bg-card/50 backdrop-blur-sm">
+      <div className="border-t border-border/40 bg-background/80 backdrop-blur-xl">
         <div className="max-w-4xl mx-auto p-4">
-          <form onSubmit={handleSubmit} className="flex gap-2 items-end">
+          <form onSubmit={handleSubmit} className="flex gap-3 items-end">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={() => setUploadDialogOpen(true)}
-              className="flex-shrink-0 scale-on-hover"
+              className="flex-shrink-0 h-11 w-11 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
             >
-              <Paperclip className="w-4 h-4" />
+              <Paperclip className="w-5 h-5" />
             </Button>
 
             <div className="flex-1 relative">
@@ -63,8 +63,8 @@ export function ChatInput({ onUpload }: ChatInputProps) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Send a message... (Shift+Enter for new line)"
-                className="min-h-[44px] max-h-[200px] resize-none pr-12 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                placeholder="输入消息... (Enter 发送，Shift+Enter 换行)"
+                className="min-h-[44px] max-h-[200px] resize-none pr-14 rounded-xl border-muted/50 bg-muted/30 focus:bg-background focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10 transition-all duration-200"
                 disabled={isLoading}
               />
             </div>
@@ -73,22 +73,22 @@ export function ChatInput({ onUpload }: ChatInputProps) {
               type="submit"
               size="icon"
               className={cn(
-                'flex-shrink-0 transition-all duration-200 scale-on-hover',
-                !input.trim() && 'opacity-50',
-                input.trim() && 'shadow-lg shadow-primary/20'
+                'flex-shrink-0 h-11 w-11 rounded-xl transition-all duration-200',
+                !input.trim() && 'opacity-40 bg-muted hover:bg-muted',
+                input.trim() && 'bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-lg shadow-amber-500/25'
               )}
               disabled={!input.trim() || isLoading}
             >
               {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                <Send className="w-4 h-4" />
+                <Send className="w-5 h-5" />
               )}
             </Button>
           </form>
 
-          <p className="text-xs text-muted-foreground text-center mt-2 fade-enter">
-            AI-generated content may be inaccurate. Please verify important information.
+          <p className="text-xs text-muted-foreground/60 text-center mt-2.5">
+            AI 生成的内容可能不准确，请核实重要信息
           </p>
         </div>
       </div>

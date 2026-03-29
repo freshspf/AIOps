@@ -37,7 +37,7 @@ No test suites currently exist in this project.
 
 ## Architecture
 
-### Backend — `src/main/java/org/example/`
+### Backend — `src/main/java/com/spf/`
 
 ```
 ChatController ──→ ChatService ──→ ReactAgent (Spring AI)
@@ -45,17 +45,63 @@ ChatController ──→ ChatService ──→ ReactAgent (Spring AI)
                                           ↑ Replanner (refines plan iteratively)
 ```
 
-- **ChatService** — orchestrates RAG chat via a single `ReactAgent` that uses tools (DateTimeTools, InternalDocsTools, QueryMetricsTools, QueryLogsTools) and maintains in-memory session history keyed by session ID.
-- **AiOpsService** — multi-agent pipeline: Supervisor delegates to Planner (creates analysis plan), Executor (runs tool calls), and Replanner (refines based on results). Produces a structured ops report via SSE.
-- **Agent tools** (`agent/tool/`) — Spring AI `@Tool`-annotated beans. InternalDocsTools triggers vector search; QueryMetricsTools/QueryLogsTools fetch from Prometheus/CLS (both have mock modes toggled via config).
-- **Vector pipeline** — `DocumentChunkService` (splits text, 800 chars max, 100 overlap) → `VectorEmbeddingService` (DashScope text-embedding-v4, 1536-dim) → `VectorIndexService` (stores in Milvus collection `biz`).
-- **VectorSearchService** — similarity search in Milvus with configurable top-k.
+**Package Structure:**
 
-Key config: `application.yml` — sets Milvus host/port, DashScope API key, RAG top-k, model name, mock toggles for Prometheus/CLS.
+| Package | Purpose |
+|---------|---------|
+| `agent/tool/` | Spring AI `@Tool`-annotated beans (DateTimeTools, InternalDocsTools, QueryMetricsTools, QueryLogsTools) |
+| `client/` | External client factories (MilvusClientFactory) |
+| `config/` | Spring configuration classes (DashScope, Milvus, Redis, Rerank, etc.) |
+| `constant/` | Application constants (MilvusConstants) |
+| `controller/` | REST API controllers (Chat, FileUpload, MilvusCheck) |
+| `dto/` | Data transfer objects with Lombok annotations |
+| `repository/` | Data access layer (ChatSessionRepository for Redis) |
+| `service/` | Business logic services (Chat, AiOps, RAG, Vector, etc.) |
+| `tool/` | Utility tools (DropCollection) |
+
+**Core Services:**
+
+- **ChatService** — orchestrates RAG chat via a single `ReactAgent` that uses tools and maintains session history.
+- **AiOpsService** — multi-agent pipeline: Supervisor delegates to Planner (creates analysis plan), Executor (runs tool calls), and Replanner (refines based on results). Produces a structured ops report via SSE.
+- **RetrievalPipelineService** — orchestrates two-stage retrieval (coarse vector search + fine reranking).
+- **RagService** — RAG query and generation with streaming support, uses RetrievalPipelineService.
+- **ChatSessionService** — session persistence with Write-Through pattern to Redis, automatic session recovery with LLM summarization.
+- **VectorEmbeddingService** — text vectorization using DashScope text-embedding-v4 (1536-dim).
+- **VectorSearchService** — similarity search in Milvus with configurable top-k.
+- **DashScopeRerankService** — DashScope rerank implementation for fine-grained result ranking.
+
+**Data Pipeline:**
+
+1. **Document Ingestion:** `DocumentChunkService` (splits text, 800 chars max, 100 overlap) → `VectorEmbeddingService` → `VectorIndexService` (stores in Milvus collection `biz`)
+2. **Two-Stage Retrieval:** Milvus coarse search (`recall-top-k: 12`) → DashScope rerank (`final-top-k: 4`) → Per-document diversity cap (`per-doc-cap: 2`)
+3. **Session Persistence:** Write-Through to Redis with LLM summarization for old messages
+
+Key config: `application.yml` — sets Milvus host/port, DashScope API key, RAG parameters, rerank settings, model name, mock toggles for Prometheus/CLS.
 
 ### Frontend — `web-ui/`
 
-React app with Zustand state management. The `useChat` hook handles SSE streaming. Vite dev server proxies `/api` and `/milvus` to the backend on port 9900.
+React 19 + TypeScript app with Zustand state management. Component-based architecture with shadcn/ui primitives.
+
+**Structure:**
+
+| Directory | Purpose |
+|-----------|---------|
+| `components/chat/` | Chat-specific components (AiOpsDialog, ChatInput, CodeBlock, MessageBubble, MessageList, UploadDialog) |
+| `components/layout/` | Layout components (Sidebar) |
+| `components/ui/` | Reusable UI components (shadcn/ui primitives) |
+| `hooks/` | Custom React hooks (useChat, useSSEStream) |
+| `services/` | API service layer (api.ts) |
+| `stores/` | Zustand state management (chat-store.ts) |
+| `types/` | TypeScript type definitions |
+| `lib/` | Utility functions (utils.ts) |
+
+**Key Features:**
+
+- SSE streaming support via `useSSEStream` hook
+- Session management with persistence
+- File upload with drag-and-drop
+- Syntax highlighting for code blocks
+- Responsive design with Tailwind CSS
 
 Path aliases configured: `@/` → `src/`, `@/components`, `@/hooks`, `@/services`, `@/stores`, `@/types`, `@/assets`.
 
@@ -130,6 +176,7 @@ All project documentation is located in `docs/` directory:
 
 ```
 docs/
+├── frontend-features.md               # 前端功能文档：完整功能清单和技术栈
 ├── redis-persistence-plan.md           # 技术方案：Redis 持久化完整设计
 ├── redis-persistence-session-context.md # 会话上下文：当前实施状态，供其他 AI 继续
 └── api/
@@ -141,6 +188,7 @@ docs/
 
 | 文档路径 | 用途 | 维护场景 |
 |---------|------|----------|
+| `docs/frontend-features.md` | 前端功能与技术栈 | **前端功能变更时必须更新** |
 | `docs/redis-persistence-plan.md` | 技术方案与实施总结 | 新增功能、架构变更时更新 |
 | `docs/redis-persistence-session-context.md` | AI 会话上下文 | 每次完成工作后更新状态 |
 | `docs/api/SuperBizAgent-API.md` | 完整 API 文档 | **任何 API 变更时必须更新** |
@@ -194,6 +242,35 @@ docs/
 
 ## Project Specifications
 
+### Two-Stage Retrieval Pipeline
+
+**Architecture:** Coarse retrieval + Fine reranking for improved relevance and diversity
+
+**Stages:**
+
+1. **Coarse Retrieval (Milvus)**
+   - Vector similarity search with configurable `recall-top-k` (default: 12)
+   - Fast retrieval using HNSW index
+   - Returns candidate documents with similarity scores
+
+2. **Fine Reranking (DashScope)**
+   - DashScope rerank API re-scores candidates based on query relevance
+   - Configurable `final-top-k` (default: 4) for final results
+   - `per-doc-cap` (default: 2) ensures diversity across documents
+
+**Key Components:**
+- `RetrievalPipelineService` — Orchestrates the two-stage retrieval
+- `DashScopeRerankService` — DashScope rerank implementation
+- `RerankService` — Interface for extensibility (swap rerank providers)
+
+**Configuration (application.yml):**
+```yaml
+rag:
+  recall-top-k: 12    # Candidates for rerank
+  final-top-k: 4      # Final results returned
+  per-doc-cap: 2      # Max results per document
+```
+
 ### Chat Persistence (Redis)
 
 **Architecture:** Write-Through pattern (dual-write to memory + Redis)
@@ -219,6 +296,48 @@ docs/
 2. **Service Layer** — Business logic, coordinate with external services
 3. **Repository Layer** — Data access (e.g., `ChatSessionRepository` for Redis)
 4. **DTO Layer** — Data transfer objects with Lombok annotations
+
+**Design Patterns Used:**
+
+- **Service Layer Pattern** — Clear separation between controllers and business logic
+- **Repository Pattern** — `ChatSessionRepository` for Redis operations
+- **DTO Pattern** — Separate data transfer objects for API contracts
+- **Strategy Pattern** — `RerankService` interface for multiple rerank implementations
+- **Observer Pattern** — SSE streaming for real-time updates
+- **Factory Pattern** — `MilvusClientFactory` for connection management
+
+### Technology Stack
+
+**Backend:**
+- Java 17
+- Spring Boot 3.2.0
+- Spring AI Alibaba 1.1.0.0-RC2
+- Spring AI Agent Framework
+- Milvus SDK 2.6.10
+- Redis (session persistence)
+- DashScope SDK 2.17.0
+
+**Frontend:**
+- React 19.2.4
+- TypeScript 5.9.3
+- Vite 8.0.1
+- Zustand 5.0.12 (state management)
+- Radix UI components
+- Tailwind CSS 3.4.19
+
+### Configuration Management
+
+The project uses Spring Boot's `@ConfigurationProperties` extensively:
+
+| Config Class | Purpose |
+|--------------|---------|
+| `MilvusProperties` | Milvus connection settings |
+| `RerankConfig` | Rerank parameters (recall-top-k, final-top-k, per-doc-cap) |
+| `DocumentChunkConfig` | Text chunking parameters |
+| `DashScopeConfig` | DashScope AI configuration |
+| `RedisConfig` | Redis session persistence |
+
+Environment variable support for sensitive data (e.g., `DASHSCOPE_API_KEY`).
 
 ### Testing Notes
 

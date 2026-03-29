@@ -1,3 +1,6 @@
+/* Code syntax highlighting - GitHub Dark theme */
+@import 'highlight.js/styles/github-dark.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -85,6 +88,12 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: 'rlig' 1, 'calt' 1;
+    /* Subtle grid pattern */
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.3) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.3) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: -1px -1px;
   }
 }
 
@@ -140,9 +149,6 @@
     @apply font-display tracking-tight;
   }
 }
-
-/* Code syntax highlighting - GitHub Dark Dimmed theme */
-@import 'highlight.js/styles/github-dark-dimmed.css';
 
 /* Message animations */
 @layer utilities {
@@ -261,5 +267,95 @@
       transform: scale(1);
       opacity: 1;
     }
+  }
+}
+
+/* Custom prose/markdown styling for better readability */
+@layer components {
+  .prose {
+    @apply text-foreground;
+  }
+
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4,
+  .prose h5,
+  .prose h6 {
+    @apply text-foreground font-semibold;
+  }
+
+  .prose p {
+    @apply text-foreground leading-relaxed;
+  }
+
+  .prose strong {
+    @apply text-foreground font-semibold;
+  }
+
+  .prose em {
+    @apply text-foreground;
+  }
+
+  .prose a {
+    @apply text-primary underline underline-offset-2 hover:opacity-80;
+  }
+
+  .prose ul,
+  .prose ol {
+    @apply text-foreground;
+  }
+
+  .prose li {
+    @apply text-foreground;
+  }
+
+  .prose code {
+    @apply text-foreground;
+  }
+
+  .prose blockquote {
+    @apply text-foreground border-l-4 border-primary/30;
+  }
+
+  .prose hr {
+    @apply border-border;
+  }
+
+  /* Table styling */
+  .prose table {
+    @apply text-foreground;
+  }
+
+  .prose th {
+    @apply text-foreground font-semibold;
+  }
+
+  .prose td {
+    @apply text-foreground;
+  }
+
+  /* Inline code styling with better contrast */
+  .prose pre + p code,
+  .prose :not(pre) > code {
+    @apply text-foreground bg-muted px-1.5 py-0.5 rounded text-sm;
+  }
+
+  /* Table inline code - minimal styling for better readability */
+  .prose td code,
+  .prose th code {
+    @apply px-0.5 py-0 text-sm font-mono;
+    @apply bg-transparent;
+    @apply text-slate-600 dark:text-slate-400;
+    @apply border border-slate-200 dark:border-slate-700;
+    display: inline;
+  }
+
+  /* General inline-code class */
+  .inline-code {
+    @apply px-1.5 py-0.5 rounded text-sm font-mono;
+    @apply bg-amber-100 dark:bg-amber-900/30;
+    @apply text-amber-800 dark:text-amber-200;
+    @apply border border-amber-200 dark:border-amber-700/50;
   }
 }

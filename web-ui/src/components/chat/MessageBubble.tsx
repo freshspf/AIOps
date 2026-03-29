@@ -16,34 +16,34 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
   return (
     <div
       className={cn(
-        'flex gap-4 group',
+        'flex gap-3 group py-1',
         isUser ? 'justify-end' : 'justify-start'
       )}
     >
       {!isUser && (
-        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10">
-          <Bot className="w-4 h-4 text-primary" />
+        <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+          <Bot className="w-5 h-5 text-white" />
         </div>
       )}
 
       <div
         className={cn(
-          'flex flex-col gap-1 max-w-[80%]',
+          'flex flex-col gap-1.5 max-w-[85%]',
           isUser ? 'items-end' : 'items-start'
         )}
       >
         <div
           className={cn(
-            'rounded-2xl px-4 py-3',
+            'rounded-2xl px-4 py-2.5 shadow-sm',
             isUser
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted/50 text-foreground'
+              ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-tr-sm'
+              : 'bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-foreground border border-slate-200/50 dark:border-slate-700/50 rounded-tl-sm'
           )}
         >
           {isUser ? (
-            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+            <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
           ) : (
-            <div className="prose prose-sm dark:prose-invert max-w-none">
+            <div className="prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
@@ -53,25 +53,24 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
                     const code = String(children).replace(/\n$/, '')
 
                     return !inline ? (
-                      <div className="relative group rounded-lg overflow-hidden bg-slate-950 dark:bg-slate-900 border border-slate-800">
-                        {/* Header with language tag */}
+                      <div className="relative group/code rounded-lg overflow-hidden my-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
                         {match && (
-                          <div className="absolute top-0 right-0 px-2 py-1 text-xs text-slate-400 bg-slate-800/50 rounded-bl">
-                            {language}
+                          <div className="px-3 py-1.5 border-b border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/50">
+                            <span className="text-xs text-muted-foreground font-medium">
+                              {language}
+                            </span>
                           </div>
                         )}
                         <CodeBlock
                           code={code}
                           language={language}
-                          className="block p-3 text-sm overflow-x-auto"
+                          className="block p-4 text-sm overflow-x-auto"
                         />
                       </div>
                     ) : (
                       <code
                         className={cn(
-                          'px-1.5 py-0.5 rounded text-sm',
-                          'bg-slate-200 dark:bg-slate-800',
-                          'font-mono',
+                          'inline-code font-mono text-sm',
                           className
                         )}
                         {...props}
@@ -80,23 +79,29 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
                       </code>
                     )
                   },
-                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                  ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                  ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                  li: ({ children }) => <li className="mb-1">{children}</li>,
+                  p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-700 dark:text-slate-300">{children}</p>,
+                  ul: ({ children }) => <ul className="list-disc pl-5 mb-3 space-y-1 text-slate-700 dark:text-slate-300">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 space-y-1 text-slate-700 dark:text-slate-300">{children}</ol>,
+                  li: ({ children }) => <li className="text-slate-700 dark:text-slate-300">{children}</li>,
                   h1: ({ children }) => (
-                    <h1 className="text-lg font-semibold mb-2 mt-4">{children}</h1>
+                    <h1 className="text-xl font-bold mb-3 mt-4 text-slate-900 dark:text-slate-100 pb-2 border-b border-slate-200 dark:border-slate-700">
+                      {children}
+                    </h1>
                   ),
                   h2: ({ children }) => (
-                    <h2 className="text-base font-semibold mb-2 mt-3">{children}</h2>
+                    <h2 className="text-lg font-bold mb-2 mt-4 text-slate-900 dark:text-slate-100">
+                      {children}
+                    </h2>
                   ),
                   h3: ({ children }) => (
-                    <h3 className="text-sm font-semibold mb-2 mt-2">{children}</h3>
+                    <h3 className="text-base font-semibold mb-2 mt-3 text-slate-900 dark:text-slate-100">
+                      {children}
+                    </h3>
                   ),
                   a: ({ children, href }) => (
                     <a
                       href={href}
-                      className="text-primary underline underline-offset-2"
+                      className="text-amber-600 dark:text-amber-400 font-medium underline underline-offset-2 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -104,9 +109,26 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
                     </a>
                   ),
                   blockquote: ({ children }) => (
-                    <blockquote className="border-l-4 border-primary/30 pl-4 italic my-2">
+                    <blockquote className="border-l-3 border-amber-500/50 pl-4 italic my-3 text-slate-600 dark:text-slate-400 bg-amber-50/50 dark:bg-amber-950/20 py-2 rounded-r">
                       {children}
                     </blockquote>
+                  ),
+                  table: ({ children }) => (
+                    <div className="my-3 overflow-x-auto">
+                      <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                        {children}
+                      </table>
+                    </div>
+                  ),
+                  th: ({ children }) => (
+                    <th className="px-4 py-2 bg-slate-100 dark:bg-slate-800 font-semibold text-sm text-slate-900 dark:text-slate-100 text-left">
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 border-t border-slate-200 dark:border-slate-700">
+                      {children}
+                    </td>
                   ),
                 }}
               >
@@ -117,7 +139,7 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
           )}
         </div>
 
-        <span className="text-xs text-muted-foreground px-1">
+        <span className="text-xs text-muted-foreground/70 px-1">
           {new Date(message.timestamp).toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
@@ -126,8 +148,8 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
       </div>
 
       {isUser && (
-        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-          <User className="w-4 h-4 text-primary-foreground" />
+        <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center shadow-lg">
+          <User className="w-5 h-5 text-white" />
         </div>
       )}
     </div>
