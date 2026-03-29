@@ -24,9 +24,9 @@ milvus:
 spring:
   data:
     redis:
-      host: ${REDIS_HOST:14.103.115.251}
+      host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:200228}
+      password: ${REDIS_PASSWORD:}
       database: 0
       timeout: 5000ms
       lettuce:
