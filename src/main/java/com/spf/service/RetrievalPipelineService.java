@@ -54,6 +54,8 @@ public class RetrievalPipelineService {
         }
 
         List<RetrievedChunk> candidates = mapToRetrievedChunks(coarseResults);
+        logger.info("粗排候选, query='{}': {}", query, summarizeChunks(candidates, 6));
+
         List<RetrievedChunk> ranked;
         if (rerankEnabled) {
             try {
@@ -67,8 +69,9 @@ public class RetrievalPipelineService {
         }
 
         List<RetrievedChunk> finalChunks = applyPerDocCap(ranked, effectiveFinalTopK, perDocCap);
-        logger.info("两阶段检索完成, query='{}', 粗排={}, 最终={}",
-                query, coarseResults.size(), finalChunks.size());
+        logger.info("最终命中, query='{}': {}", query, summarizeChunks(finalChunks, effectiveFinalTopK));
+        logger.info("两阶段检索完成, query='{}', 粗排={}, 最终={}, perDocCap={}",
+                query, coarseResults.size(), finalChunks.size(), perDocCap);
         return finalChunks;
     }
 
@@ -130,5 +133,43 @@ public class RetrievalPipelineService {
         }
 
         return selected;
+    }
+
+    private String summarizeChunks(List<RetrievedChunk> chunks, int limit) {
+        if (chunks == null || chunks.isEmpty()) {
+            return "[]";
+        }
+
+        List<String> summaries = new ArrayList<>();
+        int boundedLimit = Math.min(Math.max(limit, 1), chunks.size());
+        for (int i = 0; i < boundedLimit; i++) {
+            RetrievedChunk chunk = chunks.get(i);
+            String label = chunk.getTitle();
+            if (label == null || label.isBlank()) {
+                label = chunk.getFileName();
+            }
+            if (label == null || label.isBlank()) {
+                label = chunk.getSourceKey();
+            }
+
+            summaries.add(String.format(
+                    "#%d[%s|chunk=%s|vector=%.4f|rerank=%.4f|final=%.4f]",
+                    i + 1,
+                    sanitize(label),
+                    chunk.getChunkIndex() == null ? "-" : chunk.getChunkIndex(),
+                    chunk.getVectorScore(),
+                    chunk.getRerankScore(),
+                    chunk.getFinalScore()
+            ));
+        }
+
+        if (chunks.size() > boundedLimit) {
+            summaries.add("... +" + (chunks.size() - boundedLimit));
+        }
+        return summaries.toString();
+    }
+
+    private String sanitize(String value) {
+        return value.replace('\n', ' ').replace('\r', ' ').trim();
     }
 }

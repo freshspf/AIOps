@@ -157,7 +157,8 @@ public class DashScopeRerankService implements RerankService {
                 .reversed());
 
         int limit = Math.min(Math.max(topN, 1), reranked.size());
-        logger.info("DashScope rerank 完成, 输入候选={}, 输出候选={}", candidates.size(), limit);
+        logger.info("DashScope rerank 完成, 输入候选={}, 输出候选={}, 命中明细={}",
+                candidates.size(), limit, summarizeChunks(reranked, Math.min(limit, 6)));
         return new ArrayList<>(reranked.subList(0, limit));
     }
 
@@ -186,5 +187,42 @@ public class DashScopeRerankService implements RerankService {
         ranked.sort(Comparator.comparing(RetrievedChunk::getVectorScore).reversed());
         int limit = Math.min(Math.max(topN, 1), ranked.size());
         return new ArrayList<>(ranked.subList(0, limit));
+    }
+
+    private String summarizeChunks(List<RetrievedChunk> chunks, int limit) {
+        if (chunks == null || chunks.isEmpty()) {
+            return "[]";
+        }
+
+        List<String> summaries = new ArrayList<>();
+        int boundedLimit = Math.min(Math.max(limit, 1), chunks.size());
+        for (int i = 0; i < boundedLimit; i++) {
+            RetrievedChunk chunk = chunks.get(i);
+            String label = chunk.getTitle();
+            if (label == null || label.isBlank()) {
+                label = chunk.getFileName();
+            }
+            if (label == null || label.isBlank()) {
+                label = chunk.getSourceKey();
+            }
+
+            summaries.add(String.format(
+                    "#%d[%s|chunk=%s|rerank=%.4f|vector=%.4f]",
+                    i + 1,
+                    sanitize(label),
+                    chunk.getChunkIndex() == null ? "-" : chunk.getChunkIndex(),
+                    chunk.getRerankScore(),
+                    chunk.getVectorScore()
+            ));
+        }
+
+        if (chunks.size() > boundedLimit) {
+            summaries.add("... +" + (chunks.size() - boundedLimit));
+        }
+        return summaries.toString();
+    }
+
+    private String sanitize(String value) {
+        return value.replace('\n', ' ').replace('\r', ' ').trim();
     }
 }
