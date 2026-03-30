@@ -335,27 +335,7 @@
     @apply text-foreground;
   }
 
-  /* Inline code styling with better contrast */
-  .prose pre + p code,
-  .prose :not(pre) > code {
-    @apply text-foreground bg-muted px-1.5 py-0.5 rounded text-sm;
-  }
-
-  /* Table inline code - minimal styling for better readability */
-  .prose td code,
-  .prose th code {
-    @apply px-0.5 py-0 text-sm font-mono;
-    @apply bg-transparent;
-    @apply text-slate-600 dark:text-slate-400;
-    @apply border border-slate-200 dark:border-slate-700;
-    display: inline;
-  }
-
-  /* General inline-code class */
-  .inline-code {
-    @apply px-1.5 py-0.5 rounded text-sm font-mono;
-    @apply bg-amber-100 dark:bg-amber-900/30;
-    @apply text-amber-800 dark:text-amber-200;
-    @apply border border-amber-200 dark:border-amber-700/50;
-  }
+  /* Inline code styling is handled via inline styles in components
+     (MessageBubble.tsx / AiOpsDialog.tsx) to avoid CSS specificity conflicts.
+     Do NOT add .prose code rules here — they will override inline styles. */
 }

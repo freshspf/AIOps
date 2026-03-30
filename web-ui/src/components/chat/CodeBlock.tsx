@@ -42,11 +42,7 @@ export function CodeBlock({ code, language = 'auto', className }: CodeBlockProps
   return (
     <code
       ref={codeRef}
-      className={cn(
-        'hljs font-mono text-sm leading-relaxed',
-        'text-foreground',
-        className
-      )}
+      className={cn('hljs font-mono text-sm leading-relaxed', className)}
     >
       {code || ''}
     </code>

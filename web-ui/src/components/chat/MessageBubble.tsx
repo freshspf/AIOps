@@ -1,14 +1,17 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import React, { createContext, useContext } from 'react'
 import { type Message } from '@/types'
 import { Bot, User } from 'lucide-react'
-import { CodeBlock } from './CodeBlock'
 import { cn } from '@/lib/utils'
 
 interface MessageBubbleProps {
   message: Message
   isStreaming?: boolean
 }
+
+// Context to track whether code is inside <pre> (block) or not (inline)
+const PreContext = createContext(false)
 
 export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
   const isUser = message.role === 'user'
@@ -47,32 +50,46 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  code: ({ node, inline, className, children, ...props }) => {
-                    const match = /language-(\w+)/.exec(className || '')
-                    const language = match ? match[1] : 'auto'
-                    const code = String(children).replace(/\n$/, '')
+                  // Block code: <pre><code>...</code></pre>
+                  pre: ({ children }) => {
+                    // Extract language and content from the <code> child
+                    const codeChild = React.Children.toArray(children)[0]
+                    if (!React.isValidElement(codeChild)) {
+                      return <pre>{children}</pre>
+                    }
+                    const codeProps = codeChild.props as Record<string, unknown>
+                    const codeClassName = (codeProps?.className as string) || ''
+                    const match = /language-(\w+)/.exec(codeClassName)
+                    const language = match ? match[1] : ''
+                    const codeContent = String(codeProps?.children || '').replace(/\n$/, '')
 
-                    return !inline ? (
-                      <div className="relative group/code rounded-lg overflow-hidden my-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-                        {match && (
-                          <div className="px-3 py-1.5 border-b border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/50">
-                            <span className="text-xs text-muted-foreground font-medium">
-                              {language}
-                            </span>
-                          </div>
-                        )}
-                        <CodeBlock
-                          code={code}
-                          language={language}
-                          className="block p-4 text-sm overflow-x-auto"
-                        />
-                      </div>
-                    ) : (
+                    return (
+                      <PreContext.Provider value={true}>
+                        <div className="my-3 rounded-lg overflow-hidden border border-slate-800 bg-[#0d1117]">
+                          {match && (
+                            <div className="px-3 py-1.5 border-b border-slate-700/50 bg-[#161b22]">
+                              <span className="text-xs text-slate-400 font-medium">{language}</span>
+                            </div>
+                          )}
+                          <pre className="p-4 text-sm font-mono overflow-x-auto text-slate-300 m-0">
+                            <code className={codeClassName}>{codeContent}</code>
+                          </pre>
+                        </div>
+                      </PreContext.Provider>
+                    )
+                  },
+                  // Both inline and block code land here
+                  code: ({ className, children, ...props }) => {
+                    const inPre = useContext(PreContext)
+                    if (inPre) {
+                      // Block code — already rendered by pre component, keep plain
+                      return <code className={className} {...props}>{children}</code>
+                    }
+                    // Inline code — lightweight tag style
+                    return (
                       <code
-                        className={cn(
-                          'inline-code font-mono text-sm',
-                          className
-                        )}
+                        className="inline rounded px-1.5 py-px text-[0.85em] font-mono bg-black/[0.06] text-inherit leading-[1.6] dark:bg-white/[0.08]"
+                        style={{ border: 'none' }}
                         {...props}
                       >
                         {children}
