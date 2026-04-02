@@ -205,17 +205,34 @@ public class ChatService {
      * @return 压缩后的摘要
      */
     public String summarizeConversation(String conversationHistory) {
+        return summarizeConversation(null, conversationHistory);
+    }
+
+    /**
+     * 使用 LLM 增量更新对话摘要
+     * @param existingSummary 已有摘要（可为null，首次生成时使用）
+     * @param newConversation 新增的对话文本
+     * @return 更新后的摘要
+     */
+    public String summarizeConversation(String existingSummary, String newConversation) {
         try {
             DashScopeApi dashScopeApi = createDashScopeApi();
             DashScopeChatModel chatModel = createChatModel(dashScopeApi, 0.3, 500, 0.9);
 
-            String prompt = "请对以下对话历史进行简洁的摘要总结，保留关键信息和上下文，不超过200字：\n\n"
-                    + conversationHistory;
+            String prompt;
+            if (existingSummary != null && !existingSummary.isEmpty()) {
+                prompt = "基于以下已有摘要和新对话内容，更新摘要，合并保留关键信息和上下文，不超过200字。\n\n"
+                        + "【已有摘要】\n" + existingSummary + "\n\n"
+                        + "【新对话内容】\n" + newConversation;
+            } else {
+                prompt = "请对以下对话历史进行简洁的摘要总结，保留关键信息和上下文，不超过200字：\n\n"
+                        + newConversation;
+            }
 
             org.springframework.ai.chat.messages.Message message = new SystemMessage(prompt);
             var response = chatModel.call(new Prompt(List.of(message)));
             String summary = response.getResult().getOutput().getText();
-            logger.info("对话摘要生成完成，摘要长度: {}", summary.length());
+            logger.info("对话摘要更新完成，摘要长度: {}", summary.length());
             return summary;
         } catch (Exception e) {
             logger.error("生成对话摘要失败", e);

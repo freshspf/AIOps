@@ -87,6 +87,26 @@ public class ChatSessionRepository {
         log.debug("删除会话元数据: {}", sessionId);
     }
 
+    // ==================== 摘要操作 ====================
+
+    /**
+     * 保存会话摘要
+     */
+    public void saveSummary(String sessionId, String summary) {
+        String key = SESSION_KEY_PREFIX + sessionId;
+        redisTemplate.opsForHash().put(key, "summary", summary);
+        log.debug("保存会话摘要: {}", sessionId);
+    }
+
+    /**
+     * 获取会话摘要（不存在返回 null）
+     */
+    public String getSummary(String sessionId) {
+        String key = SESSION_KEY_PREFIX + sessionId;
+        Object obj = redisTemplate.opsForHash().get(key, "summary");
+        return obj != null ? String.valueOf(obj) : null;
+    }
+
     // ==================== 消息操作 ====================
 
     /**

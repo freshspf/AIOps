@@ -1,0 +1,23 @@
+# Prometheus 配置文件
+global:
+  scrape_interval: 15s     # 抓取间隔
+  evaluation_interval: 15s # 规则评估间隔
+
+# 告警管理器配置（可选）
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: []
+
+# 抓取配置
+scrape_configs:
+  # Prometheus 自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Spring Boot 应用监控（需要应用暴露 actuator 端点）
+  - job_name: 'superbizagent'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:9900']

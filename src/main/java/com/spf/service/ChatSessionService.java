@@ -168,6 +168,22 @@ public class ChatSessionService {
         return listSessions(1, DEFAULT_PAGE_SIZE);
     }
 
+    // ==================== 摘要管理 ====================
+
+    /**
+     * 保存会话摘要到 Redis
+     */
+    public void saveSummary(String sessionId, String summary) {
+        repository.saveSummary(sessionId, summary);
+    }
+
+    /**
+     * 从 Redis 获取会话摘要（不存在返回 null）
+     */
+    public String getSummary(String sessionId) {
+        return repository.getSummary(sessionId);
+    }
+
     // ==================== 会话恢复 ====================
 
     /**

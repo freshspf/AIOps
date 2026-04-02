@@ -104,9 +104,13 @@ public class ChatController {
             String fullAnswer = chatService.executeChat(agent, request.getQuestion());
 
             // 更新会话历史
-            session.addMessage(request.getQuestion(), fullAnswer);
+            String evictedText = session.addMessage(request.getQuestion(), fullAnswer);
             // 同步到 Redis
             chatSessionService.addMessage(session.getSessionId(), request.getQuestion(), fullAnswer);
+            // 增量更新摘要（如有淘汰消息）
+            if (evictedText != null) {
+                updateSummaryAsync(session, evictedText);
+            }
             logger.info("已更新会话历史 - SessionId: {}, 当前消息对数: {}",
                 request.getId(), session.getMessagePairCount());
 
@@ -256,9 +260,13 @@ public class ChatController {
                                 request.getId(), fullAnswer.length());
                             
                             // 更新会话历史
-                            session.addMessage(request.getQuestion(), fullAnswer);
+                            String evictedText = session.addMessage(request.getQuestion(), fullAnswer);
                             // 同步到 Redis
                             chatSessionService.addMessage(session.getSessionId(), request.getQuestion(), fullAnswer);
+                            // 增量更新摘要（如有淘汰消息）
+                            if (evictedText != null) {
+                                updateSummaryAsync(session, evictedText);
+                            }
                             logger.info("已更新会话历史 - SessionId: {}, 当前消息对数: {}",
                                 session.getSessionId(), session.getMessagePairCount());
                             
@@ -478,6 +486,26 @@ public class ChatController {
 
     // ==================== 辅助方法 ====================
 
+    /**
+     * 异步增量更新会话摘要
+     * 将被淘汰的消息合并到已有摘要中，并持久化到 Redis
+     */
+    private void updateSummaryAsync(SessionInfo session, String evictedText) {
+        executor.execute(() -> {
+            try {
+                String existingSummary = session.getSummary();
+                String newSummary = chatService.summarizeConversation(existingSummary, evictedText);
+                if (newSummary != null) {
+                    session.setSummary(newSummary);
+                    chatSessionService.saveSummary(session.getSessionId(), newSummary);
+                    logger.info("会话 {} 摘要已增量更新并持久化", session.getSessionId());
+                }
+            } catch (Exception e) {
+                logger.error("增量更新摘要失败", e);
+            }
+        });
+    }
+
     private SessionInfo getOrCreateSession(String sessionId) {
         if (sessionId == null || sessionId.isEmpty()) {
             sessionId = UUID.randomUUID().toString();
@@ -500,12 +528,20 @@ public class ChatController {
         if (!recovered.getRecentMessages().isEmpty()) {
             logger.info("从 Redis 恢复会话 {} 的最近消息，数量: {}", sessionId, recovered.getRecentMessages().size());
 
-            // 如果有旧消息需要压缩，调用 LLM 生成摘要
             if (recovered.getOldConversationText() != null) {
-                String summary = chatService.summarizeConversation(recovered.getOldConversationText());
-                if (summary != null) {
-                    sessionInfo.setSummary(summary);
-                    logger.info("会话 {} 历史摘要已生成", sessionId);
+                // 优先从 Redis 加载已有摘要，避免重复 LLM 调用
+                String existingSummary = chatSessionService.getSummary(sessionId);
+                if (existingSummary != null) {
+                    sessionInfo.setSummary(existingSummary);
+                    logger.info("会话 {} 从 Redis 恢复已有摘要", sessionId);
+                } else {
+                    // Redis 无摘要，回退到全量生成（兼容旧数据）
+                    String summary = chatService.summarizeConversation(recovered.getOldConversationText());
+                    if (summary != null) {
+                        sessionInfo.setSummary(summary);
+                        chatSessionService.saveSummary(sessionId, summary);
+                        logger.info("会话 {} 历史摘要已生成并持久化", sessionId);
+                    }
                 }
             }
 
@@ -547,8 +583,9 @@ public class ChatController {
         /**
          * 添加一对消息（用户问题 + AI回复）
          * 自动管理历史消息窗口大小
+         * @return 被淘汰的消息文本（需要摘要压缩），无淘汰时返回 null
          */
-        public void addMessage(String userQuestion, String aiAnswer) {
+        public String addMessage(String userQuestion, String aiAnswer) {
             lock.lock();
             try {
                 // 添加用户消息
@@ -566,16 +603,21 @@ public class ChatController {
                 // 自动清理：保持最多 MAX_WINDOW_SIZE 对消息
                 // 每对消息包含2条记录（user + assistant）
                 int maxMessages = MAX_WINDOW_SIZE * 2;
+                StringBuilder evictedText = new StringBuilder();
                 while (messageHistory.size() > maxMessages) {
-                    // 成对删除最旧的消息（删除前2条）
-                    messageHistory.remove(0); // 删除最旧的用户消息
+                    // 成对淘汰最旧的消息，收集文本用于摘要
+                    Map<String, String> evictedUser = messageHistory.remove(0);
                     if (!messageHistory.isEmpty()) {
-                        messageHistory.remove(0); // 删除对应的AI回复
+                        Map<String, String> evictedAssistant = messageHistory.remove(0);
+                        evictedText.append("用户: ").append(evictedUser.get("content")).append("\n");
+                        evictedText.append("助手: ").append(evictedAssistant.get("content")).append("\n");
                     }
                 }
 
-                logger.debug("会话 {} 更新历史消息，当前消息对数: {}", 
+                logger.debug("会话 {} 更新历史消息，当前消息对数: {}",
                     sessionId, messageHistory.size() / 2);
+
+                return evictedText.length() > 0 ? evictedText.toString() : null;
 
             } finally {
                 lock.unlock();
