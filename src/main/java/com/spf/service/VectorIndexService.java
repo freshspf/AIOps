@@ -147,8 +147,9 @@ public class VectorIndexService {
             DocumentChunk chunk = chunks.get(i);
             
             try {
-                // 生成向量
-                List<Float> vector = embeddingService.generateEmbedding(chunk.getContent());
+                // 生成向量（拼接面包屑路径以编码标题层级上下文）
+                String textForEmbedding = chunkService.buildEmbeddingText(chunk);
+                List<Float> vector = embeddingService.generateEmbedding(textForEmbedding);
 
                 // 构建元数据（包含文件信息）
                 Map<String, Object> metadata = buildMetadata(path.toString(), chunk, chunks.size());
@@ -244,6 +245,11 @@ public class VectorIndexService {
         // 标题信息
         if (chunk.getTitle() != null && !chunk.getTitle().isEmpty()) {
             metadata.put("title", chunk.getTitle());
+        }
+
+        // 面包屑路径
+        if (chunk.getBreadcrumb() != null && !chunk.getBreadcrumb().isEmpty()) {
+            metadata.put("breadcrumb", chunk.getBreadcrumb());
         }
         
         return metadata;

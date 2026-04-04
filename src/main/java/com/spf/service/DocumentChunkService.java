@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -56,29 +57,40 @@ public class DocumentChunkService {
     }
 
     /**
-     * 按照 Markdown 标题分割文档
+     * 按照 Markdown 标题分割文档，同时维护标题层级路径（面包屑）
      */
     private List<Section> splitByHeadings(String content) {
         List<Section> sections = new ArrayList<>();
-        
+
         // 匹配 Markdown 标题：# 标题, ## 标题, ### 标题等
         Pattern headingPattern = Pattern.compile("^(#{1,6})\\s+(.+)$", Pattern.MULTILINE);
         Matcher matcher = headingPattern.matcher(content);
 
         int lastEnd = 0;
         String currentTitle = null;
+        String currentBreadcrumb = null;
+        // 用栈维护当前标题路径
+        LinkedList<String> pathStack = new LinkedList<>();
 
         while (matcher.find()) {
+            int level = matcher.group(1).length();
+            String title = matcher.group(2).trim();
+
             // 保存上一个章节
             if (lastEnd < matcher.start()) {
                 String sectionContent = content.substring(lastEnd, matcher.start()).trim();
                 if (!sectionContent.isEmpty()) {
-                    sections.add(new Section(currentTitle, sectionContent, lastEnd));
+                    sections.add(new Section(currentTitle, currentBreadcrumb, sectionContent, lastEnd));
                 }
             }
 
-            // 更新当前标题
-            currentTitle = matcher.group(2).trim();
+            // 弹出同级或更深的标题，推入新标题
+            while (pathStack.size() >= level) {
+                pathStack.pollLast();
+            }
+            pathStack.add(title);
+            currentTitle = title;
+            currentBreadcrumb = String.join(" > ", pathStack);
             lastEnd = matcher.start();
         }
 
@@ -86,13 +98,13 @@ public class DocumentChunkService {
         if (lastEnd < content.length()) {
             String sectionContent = content.substring(lastEnd).trim();
             if (!sectionContent.isEmpty()) {
-                sections.add(new Section(currentTitle, sectionContent, lastEnd));
+                sections.add(new Section(currentTitle, currentBreadcrumb, sectionContent, lastEnd));
             }
         }
 
         // 如果没有找到任何标题，将整个文档作为一个章节
         if (sections.isEmpty()) {
-            sections.add(new Section(null, content, 0));
+            sections.add(new Section(null, null, content, 0));
         }
 
         return sections;
@@ -105,16 +117,18 @@ public class DocumentChunkService {
         List<DocumentChunk> chunks = new ArrayList<>();
         String content = section.content;
         String title = section.title;
+        String breadcrumb = section.breadcrumb;
 
         // 如果章节内容小于最大尺寸，直接作为一个分片
         if (content.length() <= chunkConfig.getMaxSize()) {
             DocumentChunk chunk = new DocumentChunk(
-                content, 
-                section.startIndex, 
-                section.startIndex + content.length(), 
+                content,
+                section.startIndex,
+                section.startIndex + content.length(),
                 startChunkIndex
             );
             chunk.setTitle(title);
+            chunk.setBreadcrumb(breadcrumb);
             chunks.add(chunk);
             return chunks;
         }
@@ -122,16 +136,16 @@ public class DocumentChunkService {
         // 章节内容较长，需要进一步分片
         // 优先在段落边界分割
         List<String> paragraphs = splitByParagraphs(content);
-        
+
         StringBuilder currentChunk = new StringBuilder();
         int currentStartIndex = section.startIndex;
         int chunkIndex = startChunkIndex;
 
         for (String paragraph : paragraphs) {
             // 如果当前分片加上新段落超过最大尺寸
-            if (currentChunk.length() > 0 && 
+            if (currentChunk.length() > 0 &&
                 currentChunk.length() + paragraph.length() > chunkConfig.getMaxSize()) {
-                
+
                 // 保存当前分片
                 String chunkContent = currentChunk.toString().trim();
                 DocumentChunk chunk = new DocumentChunk(
@@ -141,6 +155,7 @@ public class DocumentChunkService {
                     chunkIndex++
                 );
                 chunk.setTitle(title);
+                chunk.setBreadcrumb(breadcrumb);
                 chunks.add(chunk);
 
                 // 开始新分片，包含重叠部分
@@ -162,10 +177,23 @@ public class DocumentChunkService {
                 chunkIndex
             );
             chunk.setTitle(title);
+            chunk.setBreadcrumb(breadcrumb);
             chunks.add(chunk);
         }
 
         return chunks;
+    }
+
+    /**
+     * 构建用于向量化的文本，将面包屑路径拼接到内容前面
+     * 使 embedding 模型能编码标题层级上下文
+     */
+    public String buildEmbeddingText(DocumentChunk chunk) {
+        String breadcrumb = chunk.getBreadcrumb();
+        if (breadcrumb != null && !breadcrumb.isEmpty()) {
+            return breadcrumb + "\n" + chunk.getContent();
+        }
+        return chunk.getContent();
     }
 
     /**
@@ -217,11 +245,13 @@ public class DocumentChunkService {
      */
     private static class Section {
         String title;
+        String breadcrumb;
         String content;
         int startIndex;
 
-        Section(String title, String content, int startIndex) {
+        Section(String title, String breadcrumb, String content, int startIndex) {
             this.title = title;
+            this.breadcrumb = breadcrumb;
             this.content = content;
             this.startIndex = startIndex;
         }

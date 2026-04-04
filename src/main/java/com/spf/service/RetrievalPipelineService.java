@@ -1,5 +1,6 @@
 package com.spf.service;
 
+import com.spf.config.QueryRewriteConfig;
 import com.spf.dto.RetrievedChunk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,12 @@ public class RetrievalPipelineService {
     @Autowired
     private RerankService rerankService;
 
+    @Autowired
+    private QueryRewriteService queryRewriteService;
+
+    @Autowired
+    private QueryRewriteConfig queryRewriteConfig;
+
     @Value("${rag.top-k:3}")
     private int legacyTopK;
 
@@ -46,22 +53,40 @@ public class RetrievalPipelineService {
         int effectiveFinalTopK = finalTopK > 0 ? finalTopK : Math.max(legacyTopK, 1);
         int effectiveRecallTopK = recallTopK > 0 ? recallTopK : Math.max(effectiveFinalTopK * 3, 12);
 
+        // Query 改写：指代消解 + HyDE
+        String rewrittenQuery = query;
+        String hyDEText = null;
+
+        if (queryRewriteConfig.isEnabled()) {
+            rewrittenQuery = queryRewriteService.rewriteQuery(query);
+
+            if (queryRewriteConfig.isHydeEnabled()) {
+                hyDEText = queryRewriteService.generateHyDE(rewrittenQuery);
+            }
+        }
+
+        // 向量粗排：优先用 HyDE embedding（doc-to-doc 相似度更高），失败则用改写后的 query
+        String vectorQuery = (hyDEText != null) ? hyDEText : rewrittenQuery;
         List<VectorSearchService.SearchResult> coarseResults =
-                vectorSearchService.searchSimilarDocuments(query, effectiveRecallTopK);
+                vectorSearchService.searchSimilarDocuments(vectorQuery, effectiveRecallTopK);
 
         if (coarseResults.isEmpty()) {
             return List.of();
         }
 
         List<RetrievedChunk> candidates = mapToRetrievedChunks(coarseResults);
-        logger.info("粗排候选, query='{}': {}", query, summarizeChunks(candidates, 6));
+        logger.info("粗排候选, query='{}', rewrite='{}', hyDE={}: {}",
+                query, rewrittenQuery != query ? "'" + rewrittenQuery + "'" : "skip",
+                hyDEText != null ? "on(" + hyDEText.length() + "字)" : "off",
+                summarizeChunks(candidates, 6));
 
+        // Rerank 精排：使用改写后的 query（cross-encoder 本身擅长处理短 query）
         List<RetrievedChunk> ranked;
         if (rerankEnabled) {
             try {
-                ranked = rerankService.rerank(query, candidates, effectiveRecallTopK);
+                ranked = rerankService.rerank(rewrittenQuery, candidates, effectiveRecallTopK);
             } catch (Exception e) {
-                logger.warn("rerank 失败，降级为粗排结果, query='{}': {}", query, e.getMessage());
+                logger.warn("rerank 失败，降级为粗排结果, query='{}': {}", rewrittenQuery, e.getMessage());
                 ranked = sortByVectorScore(candidates, effectiveRecallTopK);
             }
         } else {
@@ -69,9 +94,10 @@ public class RetrievalPipelineService {
         }
 
         List<RetrievedChunk> finalChunks = applyPerDocCap(ranked, effectiveFinalTopK, perDocCap);
-        logger.info("最终命中, query='{}': {}", query, summarizeChunks(finalChunks, effectiveFinalTopK));
-        logger.info("两阶段检索完成, query='{}', 粗排={}, 最终={}, perDocCap={}",
-                query, coarseResults.size(), finalChunks.size(), perDocCap);
+        logger.info("最终命中, query='{}': {}", rewrittenQuery, summarizeChunks(finalChunks, effectiveFinalTopK));
+        logger.info("两阶段检索完成, query='{}' → rewrite='{}', hyDE={}, 粗排={}, 最终={}, perDocCap={}",
+                query, rewrittenQuery != query ? "'" + rewrittenQuery + "'" : "same",
+                hyDEText != null, coarseResults.size(), finalChunks.size(), perDocCap);
         return finalChunks;
     }
 

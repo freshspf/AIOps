@@ -36,6 +36,11 @@ public class DocumentChunk {
      */
     private String title;
 
+    /**
+     * 标题层级路径（面包屑），如 "RAG 智能问答 > 检索流程 > 精排阶段"
+     */
+    private String breadcrumb;
+
     public DocumentChunk() {
     }
 

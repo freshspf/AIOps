@@ -12,6 +12,7 @@ import lombok.Getter;
 import lombok.Setter;
 import com.spf.dto.ChatMessage;
 import com.spf.dto.SessionListResponse;
+import com.spf.context.ConversationContext;
 import com.spf.service.AiOpsService;
 import com.spf.service.ChatService;
 import com.spf.service.ChatSessionService;
@@ -100,8 +101,15 @@ public class ChatController {
             // 创建 ReactAgent
             ReactAgent agent = chatService.createReactAgent(chatModel, systemPrompt);
 
-            // 执行对话
-            String fullAnswer = chatService.executeChat(agent, request.getQuestion());
+            // 注入对话上下文（供 query 改写使用）
+            ConversationContext.set(history, session.getSummary());
+            String fullAnswer;
+            try {
+                // 执行对话
+                fullAnswer = chatService.executeChat(agent, request.getQuestion());
+            } finally {
+                ConversationContext.clear();
+            }
 
             // 更新会话历史
             String evictedText = session.addMessage(request.getQuestion(), fullAnswer);
@@ -196,32 +204,35 @@ public class ChatController {
                 
                 // 创建 ReactAgent
                 ReactAgent agent = chatService.createReactAgent(chatModel, systemPrompt);
-                
+
+                // 注入对话上下文（供 query 改写使用）
+                ConversationContext.set(history, session.getSummary());
+
                 // 用于累积完整答案
                 StringBuilder fullAnswerBuilder = new StringBuilder();
-                
+
                 // 使用 agent.stream() 进行流式对话
                 Flux<NodeOutput> stream = agent.stream(request.getQuestion());
-                
+
                 stream.subscribe(
                     output -> {
                         try {
                             // 检查是否为 StreamingOutput 类型
                             if (output instanceof StreamingOutput streamingOutput) {
                                 OutputType type = streamingOutput.getOutputType();
-                                
+
                                 // 处理模型推理的流式输出
                                 if (type == OutputType.AGENT_MODEL_STREAMING) {
                                     // 流式增量内容，逐步显示
                                     String chunk = streamingOutput.message().getText();
                                     if (chunk != null && !chunk.isEmpty()) {
                                         fullAnswerBuilder.append(chunk);
-                                        
+
                                         // 实时发送到前端
                                         emitter.send(SseEmitter.event()
                                                 .name("message")
                                                 .data(SseMessage.content(chunk), MediaType.APPLICATION_JSON));
-                                        
+
                                         logger.info("发送流式内容: {}", chunk);
                                     }
                                 } else if (type == OutputType.AGENT_MODEL_FINISHED) {
@@ -242,6 +253,7 @@ public class ChatController {
                     },
                     error -> {
                         // 错误处理
+                        ConversationContext.clear();
                         logger.error("ReactAgent 流式对话失败", error);
                         try {
                             emitter.send(SseEmitter.event()
@@ -254,11 +266,12 @@ public class ChatController {
                     },
                     () -> {
                         // 完成处理
+                        ConversationContext.clear();
                         try {
                             String fullAnswer = fullAnswerBuilder.toString();
-                            logger.info("ReactAgent 流式对话完成 - SessionId: {}, 答案长度: {}", 
+                            logger.info("ReactAgent 流式对话完成 - SessionId: {}, 答案长度: {}",
                                 request.getId(), fullAnswer.length());
-                            
+
                             // 更新会话历史
                             String evictedText = session.addMessage(request.getQuestion(), fullAnswer);
                             // 同步到 Redis
@@ -269,7 +282,7 @@ public class ChatController {
                             }
                             logger.info("已更新会话历史 - SessionId: {}, 当前消息对数: {}",
                                 session.getSessionId(), session.getMessagePairCount());
-                            
+
                             // 发送完成标记
                             emitter.send(SseEmitter.event()
                                     .name("message")
