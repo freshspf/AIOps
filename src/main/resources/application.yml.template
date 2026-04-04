@@ -83,6 +83,14 @@ rag:
   model: "qwen3-max"  # 大语言模型名称
   search:
     nprobe: 16
+  query-rewrite:
+    enabled: true
+    model: qwen-turbo
+    max-tokens: 200
+    temperature: 0.3
+    hyde-enabled: true
+    hyde-max-tokens: 300
+    hyde-temperature: 0.5
   rerank:
     enabled: true
     provider: dashscope

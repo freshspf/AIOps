@@ -10,9 +10,9 @@
 
 升级成：
 
-`Milvus 粗排 -> DashScope rerank 精排 -> 文档级去重/限流 -> 给 LLM`
+`Query rewrite / HyDE -> Milvus 粗排 -> DashScope rerank 精排 -> 文档级去重/限流 -> 给 LLM`
 
-这次不是只搭结构，而是已经把真实 rerank 模型接入进来了。
+这次不是只搭结构，而是在已有两阶段检索基础上，继续把 query 改写、HyDE 和标题层级上下文一起接入进来了。
 
 ---
 
@@ -28,11 +28,14 @@
 
 改动后：
 
-1. Milvus 先做粗排召回候选
-2. DashScope 官方 rerank API 再做精排
-3. 再按单文档上限做结果限流
-4. 最终只把少量高质量 chunk 送给 LLM
-5. 新增真实 rerank 相关配置与降级逻辑
+1. 多轮场景下先做 query 改写（指代消解）
+2. 可选生成 HyDE 假设文档，优先用于向量粗排
+3. Milvus 先做粗排召回候选
+4. DashScope 官方 rerank API 再做精排
+5. 再按单文档上限做结果限流
+6. 最终只把少量高质量 chunk 送给 LLM
+7. 文档 embedding 时会带上标题层级 breadcrumb
+8. 新增 query rewrite 相关配置与降级逻辑
 
 ---
 
@@ -42,7 +45,9 @@
 
 ```text
 query
- -> VectorSearchService.searchSimilarDocuments(query, recallTopK)
+ -> QueryRewriteService.rewriteQuery()
+ -> QueryRewriteService.generateHyDE() [optional]
+ -> VectorSearchService.searchSimilarDocuments(vectorQuery, recallTopK)
  -> RetrievalPipelineService.mapToRetrievedChunks()
  -> DashScopeRerankService.rerank()
  -> applyPerDocCap()
@@ -58,8 +63,11 @@ query
 2. **rerank 单独抽象**
    `RerankService` 作为统一接口，后续可继续切换不同 provider 或本地模型。
 
-3. **失败时可降级**
-   如果真实 rerank 调用失败，当前会自动回退为粗排结果，避免整条链路不可用。
+3. **查询增强与排序解耦**
+   query 改写 / HyDE 属于粗排前的增强层，rerank 仍只负责排序，不把所有能力堆进一个组件里。
+
+4. **失败时可降级**
+   如果 query 改写、HyDE 或真实 rerank 调用失败，当前会自动回退到更基础的链路，避免整条链路不可用。
 
 ---
 
@@ -84,7 +92,18 @@ query
 
 - `src/main/java/com/spf/service/RetrievalPipelineService.java`
   - 检索编排层
-  - 负责粗排、rerank、去重/限流、输出最终结果
+  - 负责 query 改写、HyDE、粗排、rerank、去重/限流、输出最终结果
+
+- `src/main/java/com/spf/config/QueryRewriteConfig.java`
+  - query 改写与 HyDE 的配置项
+
+- `src/main/java/com/spf/service/QueryRewriteService.java`
+  - 多轮指代消解
+  - HyDE 假设文档生成
+
+- `src/main/java/com/spf/context/ConversationContext.java`
+  - 基于 ThreadLocal 持有近期对话与 summary
+  - 供检索链路里的 query 改写读取
 
 ### 修改文件
 
@@ -93,6 +112,21 @@ query
   - 解析 metadata JSON
   - 返回原始分数和归一化后的粗排分数
   - 暴露 source/fileName/title/chunkIndex 等字段
+
+- `src/main/java/com/spf/controller/ChatController.java`
+  - 在普通对话与 SSE 对话中注入 `ConversationContext`
+  - 对话完成或异常时清理 ThreadLocal
+
+- `src/main/java/com/spf/service/DocumentChunkService.java`
+  - 维护 Markdown 标题层级 breadcrumb
+  - 构建带 breadcrumb 的 embedding 文本
+
+- `src/main/java/com/spf/service/VectorIndexService.java`
+  - 向量化时不再只用 chunk content
+  - 改为使用 `breadcrumb + content`
+
+- `src/main/java/com/spf/dto/DocumentChunk.java`
+  - 新增 `breadcrumb` 字段
 
 - `src/main/java/com/spf/service/RagService.java`
   - 不再直接调用 `VectorSearchService`
@@ -126,6 +160,14 @@ rag:
   per-doc-cap: 2
   search:
     nprobe: 16
+  query-rewrite:
+    enabled: true
+    model: qwen-turbo
+    max-tokens: 200
+    temperature: 0.3
+    hyde-enabled: true
+    hyde-max-tokens: 300
+    hyde-temperature: 0.5
   rerank:
     enabled: true
     provider: dashscope
@@ -153,6 +195,18 @@ rag:
 - `rag.search.nprobe`
   - IVF_FLAT 搜索时探测的簇数
   - 当前默认 `16`
+
+- `rag.query-rewrite.enabled`
+  - 是否启用 query 改写
+  - 当前默认 `true`
+
+- `rag.query-rewrite.model`
+  - query 改写与 HyDE 默认使用的轻量模型
+  - 当前默认 `qwen-turbo`
+
+- `rag.query-rewrite.hyde-enabled`
+  - 是否启用 HyDE 假设文档生成
+  - 当前默认 `true`
 
 - `rag.rerank.model`
   - 当前默认模型：`qwen3-rerank`
@@ -243,19 +297,44 @@ normalizedScore = 1 / (1 + rawL2Score)
 
 它负责把检索流程真正串起来：
 
-1. 先调用 Milvus 粗排
-2. 将粗排结果映射成 `RetrievedChunk`
-3. 如果启用 rerank，则调用 `RerankService`
-4. 如果 rerank 失败，则降级回粗排顺序
-5. 执行 `per-doc-cap`
-6. 返回最终候选
+1. 先尝试做 query 改写
+2. 如果启用 HyDE，则生成假设文档作为粗排查询文本
+3. 再调用 Milvus 粗排
+4. 将粗排结果映射成 `RetrievedChunk`
+5. 如果启用 rerank，则调用 `RerankService`
+6. 如果 rerank 失败，则降级回粗排顺序
+7. 执行 `per-doc-cap`
+8. 返回最终候选
 
 `per-doc-cap` 的作用是减少：
 
 - 同一文档多个相邻 chunk 同时进入最终上下文
 - 候选结果信息重复、覆盖面变差
 
-### 5. RagService / InternalDocsTools
+query 改写与 HyDE 的作用分别是：
+
+- query 改写：让多轮场景中的短 query 变成自包含查询，减少“它/这个/上面那个”这类指代带来的召回漂移
+- HyDE：先生成一段假设性回答文档，再拿这段文本做 embedding，提升短 query 场景下的粗排稳定性
+
+### 5. 标题层级 breadcrumb 编码
+
+这次对文档切分和向量化也做了一处补强。
+
+`DocumentChunkService` 在按 Markdown 标题切分时，会维护一个标题层级路径，例如：
+
+```text
+RAG 智能问答 > 检索流程 > 精排阶段
+```
+
+这个 breadcrumb 会：
+
+1. 写入 `DocumentChunk`
+2. 写入 metadata
+3. 在向量化时拼接到 chunk 内容前面
+
+这样 embedding 模型在编码时，不再只看到孤立段落文本，而是能一起看到章节路径信息，对语义定位更友好。
+
+### 6. RagService / InternalDocsTools
 
 两者都改成依赖 `RetrievalPipelineService`，而不是直接依赖 `VectorSearchService`。
 
@@ -282,11 +361,15 @@ normalizedScore = 1 / (1 + rawL2Score)
    - 本次没有同时调整 embedding / metric / collection schema
    - 这部分后续还值得单独 review
 
-4. **暂未引入 score threshold**
+4. **query rewrite 仍是 prompt 驱动**
+   - 当前没有离线数据集专门评估改写收益
+   - 还需要通过 badcase 验证改写是否稳定
+
+5. **暂未引入 score threshold**
    - 当前一定会输出候选
    - 后续可增加低质量候选过滤阈值
 
-5. **失败时降级回粗排**
+6. **失败时降级回粗排**
    - 当前可用性优先
    - 还没有更细的重试、熔断或缓存策略
 
@@ -298,19 +381,30 @@ normalizedScore = 1 / (1 + rawL2Score)
    - `VectorSearchService` 是否仍只做粗排
    - `RetrievalPipelineService` 是否承担了应有的编排职责
 
-2. **真实 rerank 接法是否合理**
+2. **query rewrite / HyDE 接法是否合理**
+   - 多轮历史注入是否会引入噪声
+   - HyDE 是否真的优于直接用 query 做粗排
+   - 改写模型是否需要和主模型解耦
+
+3. **真实 rerank 接法是否合理**
    - 候选文档拼接格式是否合适
    - `max-input-chars` 默认值是否合理
    - `instruct` 是否需要保留
 
-3. **去重/限流策略是否合理**
+4. **去重/限流策略是否合理**
    - `per-doc-cap=2` 是否适合作为默认值
    - 是否需要补更细的 chunk 去重逻辑
 
-4. **配置默认值是否合理**
+5. **breadcrumb 编码是否合理**
+   - 标题路径是否会引入无关噪声
+   - 是否需要限制 breadcrumb 深度或长度
+
+6. **配置默认值是否合理**
    - `recall-top-k=12`
    - `final-top-k=4`
    - `nprobe=16`
+   - `query-rewrite.max-tokens=200`
+   - `hyde-max-tokens=300`
    - `max-input-chars=1200`
 
 ---
@@ -330,12 +424,13 @@ mvn -q -DskipTests compile
 如果这版你 review 认可，后续建议按这个顺序继续：
 
 1. 给检索链路补离线评测
-2. 评估是否切换更合理的 metric / index 参数
-3. 视需要补 score threshold / score fusion
-4. 再考虑引入 hybrid recall
+2. 分别评估 query rewrite / HyDE / rerank 的独立收益
+3. 评估是否切换更合理的 metric / index 参数
+4. 视需要补 score threshold / score fusion
+5. 再考虑引入 hybrid recall
 
 ---
 
 ## 一句话总结
 
-这次改动的本质，是把 RAG 从“一阶段直接召回”升级成了“使用真实 rerank 模型的两阶段检索架构”，并为后续评测、调参与混合召回打下了结构基础。
+这次改动的本质，是把 RAG 从“直接 query 向量召回”继续升级成了“query rewrite / HyDE + 两阶段检索 + 标题层级编码”的检索架构，并为后续做混合召回和离线评测打下了结构基础。

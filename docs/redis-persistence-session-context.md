@@ -49,6 +49,18 @@ src/main/java/org/example/
         └── 新增 3 个 API 接口
 ```
 
+### 后续新增的上下文相关文件（3 个）
+
+```
+src/main/java/com/spf/
+├── config/
+│   └── QueryRewriteConfig.java       # query 改写 / HyDE 配置
+├── context/
+│   └── ConversationContext.java      # ThreadLocal 持有近期历史与 summary
+└── service/
+    └── QueryRewriteService.java      # 基于会话上下文做指代消解与 HyDE
+```
+
 ### 文档文件（2 个）
 
 ```
@@ -102,6 +114,8 @@ getOrCreateSession() → 从 Redis 恢复（含摘要压缩）
     ↓
 buildSystemPrompt(history, summary) → 注入摘要 + 近期消息
     ↓
+ConversationContext.set(history, summary) → 检索侧可读取当前会话上下文
+    ↓
 ReactAgent.call(question)
     ↓
 session.addMessage() + chatSessionService.addMessage() → 双写
@@ -124,9 +138,10 @@ session.addMessage() + chatSessionService.addMessage() → 双写
 ### 当前限制
 
 1. **会话无过期策略**：数据永久保留在 Redis，建议添加 TTL
-2. **摘要仅在恢复时生成**：后续新增消息不会更新摘要
-3. **无消息搜索功能**：暂不支持按关键词搜索历史消息
-4. **单 Redis 实例**：大规模部署需考虑 Cluster 模式
+2. **摘要仅在恢复时生成**：后续新增消息不会自动更新摘要
+3. **检索侧上下文依赖 ThreadLocal**：当前只覆盖同线程内的同步调用路径
+4. **无消息搜索功能**：暂不支持按关键词搜索历史消息
+5. **单 Redis 实例**：大规模部署需考虑 Cluster 模式
 
 ---
 

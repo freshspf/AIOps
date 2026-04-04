@@ -23,11 +23,12 @@ Default ports:
 
 Top-level directories:
 
-- `src/main/java/org/example/`: Spring Boot application code
+- `src/main/java/com/spf/`: Spring Boot application code
 - `src/main/resources/application.yml`: backend runtime config
 - `web-ui/`: React + TypeScript frontend
 - `aiops-docs/`: markdown documents uploaded into the vector store
 - `docs/`: design notes and implementation plans
+- `rag-eval-data/`: offline RAG evaluation datasets, scripts, and result snapshots
 - `uploads/`: uploaded file storage
 - `target/`: Maven build output
 
@@ -98,7 +99,7 @@ Frontend dev server proxies `/api` and `/milvus` to `http://localhost:9900`.
 
 ## Architecture
 
-Backend flow under `src/main/java/org/example/`:
+Backend flow under `src/main/java/com/spf/`:
 
 ```text
 ChatController -> ChatService -> ReactAgent
@@ -147,25 +148,65 @@ Request / response conventions:
 
 ## Documentation Rules
 
-Project docs live in `docs/`:
+Current documentation layout:
 
-- `docs/api/SuperBizAgent-API.md`: complete API document
+- `docs/`: project-facing design, architecture, API, evaluation, and frontend docs
+- `aiops-docs/`: markdown knowledge-base source files uploaded into the vector store
+- `rag-eval-data/`: offline RAG evaluation assets, labels, queries, scripts, and reports
+- `简历以及面试话术/`: interview prep material; not product/project docs
+
+Project docs under `docs/` are organized as:
+
+- `docs/api/SuperBizAgent-API.md`: complete backend API document
 - `docs/api/chat-session-api.md`: chat session API details
-- `docs/redis-persistence-plan.md`: persistence design and implementation notes
-- `docs/redis-persistence-session-context.md`: current session/persistence context for future AI work
+- `docs/frontend-features.md`: frontend feature overview and implementation notes
+- `docs/redis-persistence-plan.md`: Redis persistence design and implementation plan
+- `docs/redis-persistence-session-context.md`: current session/persistence context and follow-up notes
+- `docs/rag-two-stage-retrieval-review.md`: current RAG retrieval architecture and review notes
+- `docs/rag-eval-plan.md`: RAG evaluation plan
+- `docs/eval_paln/rag_eval_data_expansion_plan.md`: expanded RAG eval dataset and experiment plan
+
+RAG evaluation assets under `rag-eval-data/` are organized as:
+
+- `rag-eval-data/corpus/`: evaluation corpus split into `core/`, `variants/`, and `distractors/`
+- `rag-eval-data/queries/`: evaluation query CSV files
+- `rag-eval-data/labels/`: golden labels for retrieval evaluation
+- `rag-eval-data/results/` and `rag-eval-data/results_relaxed/`: saved evaluation outputs
+- `rag-eval-data/docs/`: experiment notes and reports
+- `rag-eval-data/eval_rag.py`: local evaluation script
+
+Documentation placement rules:
+
+- API or request/response changes go under `docs/api/`
+- RAG retrieval, indexing, query rewrite, rerank, or eval changes go under the `docs/rag*.md` family or `docs/eval_paln/`
+- Evaluation datasets, labels, scripts, or snapshots belong under `rag-eval-data/`
+- Session persistence, Redis, memory, and recovery changes go under the `docs/redis-*.md` family
+- Frontend behavior or interaction changes go to `docs/frontend-features.md`
+- New AIOps markdown knowledge content belongs in `aiops-docs/`, not `docs/`
+- Interview scripts and prep notes belong in `简历以及面试话术/`, not `docs/`
 
 Documentation maintenance requirements:
 
+- Every new feature or meaningful behavior change must update the corresponding docs in the same task; do not leave documentation follow-up for a later pass.
 - If any API changes, update `docs/api/SuperBizAgent-API.md`
 - If chat session APIs change, also update `docs/api/chat-session-api.md`
+- If RAG retrieval behavior, ranking strategy, indexing context, or evaluation plan changes, update the corresponding `docs/rag*.md` or `docs/eval_paln/*.md`
+- If offline eval datasets, labels, scripts, or result baselines change, update the relevant files under `rag-eval-data/` and their companion docs
 - If architecture, persistence flow, or implementation status changes, update `docs/redis-persistence-session-context.md`
+- If frontend behavior changes, update `docs/frontend-features.md`
+- If knowledge-base source documents change for retrieval content, update files under `aiops-docs/` as needed
 - If new project files are introduced for the persistence/session area, update the related file list in `docs/redis-persistence-session-context.md`
 - If a change resolves or introduces a known limitation, update the corresponding docs in the same task
 
 When finishing feature work, use this checklist:
 
+- If a new feature was added, update the relevant design, usage, or status docs before considering the task complete
 - If API changed, update the API docs and append an entry to their update log
+- If RAG behavior changed, update the relevant retrieval/eval docs
+- If eval datasets or baselines changed, update `rag-eval-data/` artifacts as needed
 - If architecture or persistence behavior changed, update the session-context doc
+- If frontend behavior changed, update the frontend docs
+- If vector knowledge content changed, update the corresponding `aiops-docs/*.md`
 - If new files were added, reflect them in the relevant docs
 - If a known issue was fixed or a new one was found, update the known issues section
 
@@ -264,7 +305,8 @@ Before making changes:
 When making changes:
 
 - Preserve current architecture unless the task explicitly requires larger restructuring.
-- Update docs when behavior, commands, or endpoints change.
+- Update docs in the same task when behavior, commands, endpoints, or feature scope change.
+- Treat documentation maintenance as part of feature completion, not as optional cleanup.
 
 After making changes:
 
