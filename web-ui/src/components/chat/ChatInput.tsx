@@ -6,11 +6,7 @@ import { useChat } from '@/hooks/use-chat'
 import { UploadDialog } from './UploadDialog'
 import { cn } from '@/lib/utils'
 
-interface ChatInputProps {
-  onUpload?: () => void
-}
-
-export function ChatInput({ onUpload }: ChatInputProps) {
+export function ChatInput() {
   const [input, setInput] = useState('')
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)

@@ -12,6 +12,7 @@ import { apiService } from '@/services/api'
 import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { CodeBlock } from './CodeBlock'
 
 interface AiOpsDialogProps {
   open: boolean
@@ -26,6 +27,56 @@ interface AnalysisStep {
   type: 'info' | 'warning' | 'success' | 'error' | 'processing'
   content: string
   timestamp: number
+}
+
+function MarkdownCode({
+  className,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLElement>) {
+  const inPre = useContext(PreContext)
+
+  if (inPre) {
+    return <code className={className} {...props}>{children}</code>
+  }
+
+  return (
+    <code
+      className="inline rounded px-1.5 py-px text-[0.85em] font-mono bg-black/[0.06] text-inherit leading-[1.6] dark:bg-white/[0.08]"
+      style={{ border: 'none' }}
+      {...props}
+    >
+      {children}
+    </code>
+  )
+}
+
+function MarkdownPre({ children }: { children?: React.ReactNode }) {
+  const codeChild = React.Children.toArray(children)[0]
+  if (!React.isValidElement(codeChild)) {
+    return <pre>{children}</pre>
+  }
+
+  const codeProps = codeChild.props as Record<string, unknown>
+  const codeClassName = (codeProps?.className as string) || ''
+  const match = /language-(\w+)/.exec(codeClassName)
+  const language = match ? match[1] : ''
+  const codeContent = String(codeProps?.children || '').replace(/\n$/, '')
+
+  return (
+    <PreContext.Provider value={true}>
+      <div className="my-3 rounded-lg overflow-hidden border border-slate-800 bg-[#0d1117]">
+        {match && (
+          <div className="px-3 py-1.5 border-b border-slate-700/50 bg-[#161b22]">
+            <span className="text-xs text-slate-400 font-medium">{language}</span>
+          </div>
+        )}
+        <pre className="p-4 text-sm font-mono overflow-x-auto text-slate-300 m-0">
+          <CodeBlock code={codeContent} language={language || 'auto'} className={codeClassName} />
+        </pre>
+      </div>
+    </PreContext.Provider>
+  )
 }
 
 export function AiOpsDialog({ open, onOpenChange }: AiOpsDialogProps) {
@@ -196,47 +247,12 @@ export function AiOpsDialog({ open, onOpenChange }: AiOpsDialogProps) {
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    pre: ({ children }) => {
-                      const codeChild = React.Children.toArray(children)[0]
-                      if (!React.isValidElement(codeChild)) {
-                        return <pre>{children}</pre>
-                      }
-                      const codeProps = codeChild.props as Record<string, unknown>
-                      const codeClassName = (codeProps?.className as string) || ''
-                      const match = /language-(\w+)/.exec(codeClassName)
-                      const language = match ? match[1] : ''
-                      const codeContent = String(codeProps?.children || '').replace(/\n$/, '')
-
-                      return (
-                        <PreContext.Provider value={true}>
-                          <div className="my-3 rounded-lg overflow-hidden border border-slate-800 bg-[#0d1117]">
-                            {match && (
-                              <div className="px-3 py-1.5 border-b border-slate-700/50 bg-[#161b22]">
-                                <span className="text-xs text-slate-400 font-medium">{language}</span>
-                              </div>
-                            )}
-                            <pre className="p-4 text-sm font-mono overflow-x-auto text-slate-300 m-0">
-                              <code className={codeClassName}>{codeContent}</code>
-                            </pre>
-                          </div>
-                        </PreContext.Provider>
-                      )
-                    },
-                    code: ({ className, children, ...props }) => {
-                      const inPre = useContext(PreContext)
-                      if (inPre) {
-                        return <code className={className} {...props}>{children}</code>
-                      }
-                      return (
-                        <code
-                          className="inline rounded px-1.5 py-px text-[0.85em] font-mono bg-black/[0.06] text-inherit leading-[1.6] dark:bg-white/[0.08]"
-                          style={{ border: 'none' }}
-                          {...props}
-                        >
-                          {children}
-                        </code>
-                      )
-                    },
+                    pre: ({ children }) => <MarkdownPre>{children}</MarkdownPre>,
+                    code: ({ className, children, ...props }) => (
+                      <MarkdownCode className={className} {...props}>
+                        {children}
+                      </MarkdownCode>
+                    ),
                     p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed text-slate-700 dark:text-slate-300">{children}</p>,
                     ul: ({ children }) => <ul className="list-disc pl-5 mb-3 space-y-1 text-slate-700 dark:text-slate-300">{children}</ul>,
                     ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 space-y-1 text-slate-700 dark:text-slate-300">{children}</ol>,

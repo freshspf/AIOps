@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Upload, FileText, X, Check, AlertCircle } from 'lucide-react'
+import { Upload, FileText, Check, AlertCircle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,

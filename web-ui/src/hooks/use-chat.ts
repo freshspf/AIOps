@@ -1,69 +1,50 @@
 import { useChatStore } from '@/stores/chat-store'
-import type { Message } from '@/types'
 
 export function useChat() {
-  const {
-    currentSessionId,
-    sessions,
-    messages,
-    isLoading,
-    isStreaming,
-    currentStreamingMessage,
-    uploadProgress,
-    milvusHealthy,
-    setCurrentSession,
-    createSession,
-    sendMessage,
-    clearCurrentSession,
-    uploadFile,
-    clearUploadProgress,
-    checkMilvusHealth,
-  } = useChatStore()
+  const store = useChatStore()
 
-  const currentMessages = currentSessionId ? (messages[currentSessionId] || []) : []
+  const currentMessages = store.currentSessionId
+    ? (store.messages[store.currentSessionId] || [])
+    : []
 
   const handleSendMessage = async (question: string) => {
-    if (!question.trim() || isLoading) return
-    await sendMessage(question)
+    if (!question.trim() || store.isLoading) return
+    await store.sendMessage(question)
   }
 
-  const handleNewSession = () => {
-    const sessionId = createSession()
-    return sessionId
-  }
-
-  const handleClearSession = async () => {
-    if (currentSessionId) {
-      await clearCurrentSession()
+  const handleSelectSession = async (sessionId: string) => {
+    store.setCurrentSession(sessionId)
+    // Load messages from backend if not already cached
+    const cached = store.messages[sessionId]
+    if (!cached || cached.length === 0) {
+      await store.loadSessionMessages(sessionId)
     }
-  }
-
-  const handleUploadFile = async (file: File) => {
-    await uploadFile(file)
   }
 
   return {
     // Session state
-    currentSessionId,
-    sessions,
+    currentSessionId: store.currentSessionId,
+    sessions: store.sessions,
     currentMessages,
-    isLoading,
-    isStreaming,
-    currentStreamingMessage,
+    isLoading: store.isLoading,
+    isStreaming: store.isStreaming,
+    currentStreamingMessage: store.currentStreamingMessage,
 
     // Upload state
-    uploadProgress,
+    uploadProgress: store.uploadProgress,
 
     // Milvus health
-    milvusHealthy,
+    milvusHealthy: store.milvusHealthy,
 
     // Actions
     sendMessage: handleSendMessage,
-    newSession: handleNewSession,
-    clearSession: handleClearSession,
-    selectSession: setCurrentSession,
-    uploadFile: handleUploadFile,
-    clearUploadProgress,
-    checkHealth: checkMilvusHealth,
+    newSession: () => store.createSession(),
+    clearSession: () => store.clearCurrentSession(),
+    selectSession: handleSelectSession,
+    deleteSession: store.deleteSession,
+    loadSessions: store.loadSessions,
+    uploadFile: store.uploadFile,
+    clearUploadProgress: store.clearUploadProgress,
+    checkHealth: store.checkMilvusHealth,
   }
 }

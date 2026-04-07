@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Plus, Activity, FileText, Settings, X, MessageSquare } from 'lucide-react'
+import { useEffect } from 'react'
+import { Plus, Activity, FileText, Settings, X, MessageSquare, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -16,23 +16,27 @@ export function Sidebar({ onClose, onAiOpsClick }: SidebarProps) {
     currentSessionId,
     selectSession,
     newSession,
+    deleteSession,
+    loadSessions,
     milvusHealthy,
     checkHealth,
   } = useChat()
 
   useEffect(() => {
     checkHealth()
-    const interval = setInterval(checkHealth, 30000) // Check every 30s
+    loadSessions()
+    const interval = setInterval(checkHealth, 30000)
     return () => clearInterval(interval)
-  }, [checkHealth])
+  }, [checkHealth, loadSessions])
 
   const handleNewSession = () => {
     newSession()
     onClose?.()
   }
 
-  const handleAiOps = () => {
-    onAiOpsClick?.()
+  const handleDeleteSession = (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation()
+    deleteSession(sessionId)
   }
 
   return (
@@ -81,25 +85,37 @@ export function Sidebar({ onClose, onAiOpsClick }: SidebarProps) {
             </div>
           ) : (
             sessions.map((session) => (
-              <button
+              <div
                 key={session.sessionId}
-                onClick={() => selectSession(session.sessionId)}
-                className={`
-                  w-full text-left px-3 py-2.5 rounded-xl text-sm
-                  transition-all duration-200 ease-out
-                  ${
-                    session.sessionId === currentSessionId
-                      ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-100 shadow-sm border border-amber-200/50 dark:border-amber-700/50'
-                      : 'hover:bg-muted/50 text-muted-foreground hover:text-foreground border border-transparent'
-                  }
-                `}
+                className="group relative"
               >
-                <div className="font-medium truncate text-xs">{session.title}</div>
-                <div className="text-[10px] opacity-60 mt-0.5 flex items-center gap-1">
-                  <MessageSquare className="w-3 h-3" />
-                  {session.messagePairCount} 条消息
-                </div>
-              </button>
+                <button
+                  onClick={() => selectSession(session.sessionId)}
+                  className={`
+                    w-full text-left px-3 py-2.5 rounded-xl text-sm
+                    transition-all duration-200 ease-out pr-8
+                    ${
+                      session.sessionId === currentSessionId
+                        ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-100 shadow-sm border border-amber-200/50 dark:border-amber-700/50'
+                        : 'hover:bg-muted/50 text-muted-foreground hover:text-foreground border border-transparent'
+                    }
+                  `}
+                >
+                  <div className="font-medium truncate text-xs">{session.title}</div>
+                  <div className="text-[10px] opacity-60 mt-0.5 flex items-center gap-1">
+                    <MessageSquare className="w-3 h-3" />
+                    {session.messagePairCount} 条消息
+                  </div>
+                </button>
+                {/* Delete button - visible on hover */}
+                <button
+                  onClick={(e) => handleDeleteSession(e, session.sessionId)}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 opacity-0 group-hover:opacity-100 transition-all"
+                  title="删除对话"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             ))
           )}
         </div>
@@ -130,7 +146,7 @@ export function Sidebar({ onClose, onAiOpsClick }: SidebarProps) {
         <Button
           variant="ghost"
           className="w-full gap-2 justify-start rounded-xl h-10 text-sm"
-          onClick={handleAiOps}
+          onClick={() => onAiOpsClick?.()}
         >
           <FileText className="w-4 h-4" />
           AI 智能运维分析

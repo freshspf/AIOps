@@ -27,6 +27,8 @@ interface ChatState {
   clearMessages: (sessionId: string) => void
   createSession: () => string
   loadSessions: () => Promise<void>
+  loadSessionMessages: (sessionId: string) => Promise<void>
+  deleteSession: (sessionId: string) => Promise<void>
 
   // Chat actions
   sendMessage: (question: string) => Promise<void>
@@ -40,11 +42,21 @@ interface ChatState {
   checkMilvusHealth: () => Promise<void>
 }
 
+/** Convert backend SessionSummary to frontend Session. */
+function toSession(s: { sessionId: string; createTime: number; updateTime: number; messageCount: number; firstMessage: string }): Session {
+  return {
+    sessionId: s.sessionId,
+    title: s.firstMessage || '新对话',
+    messagePairCount: s.messageCount,
+    createTime: s.createTime,
+    updateTime: s.updateTime,
+  }
+}
+
 export const useChatStore = create<ChatState>()(
   devtools(
     persist(
       (set, get) => ({
-        // Initial state
         currentSessionId: null,
         sessions: [],
         messages: {},
@@ -54,7 +66,8 @@ export const useChatStore = create<ChatState>()(
         uploadProgress: [],
         milvusHealthy: null,
 
-        // Session actions
+        // ─── Session actions ──────────────────────────────────
+
         setCurrentSession: (sessionId) => {
           set({ currentSessionId: sessionId })
         },
@@ -80,10 +93,7 @@ export const useChatStore = create<ChatState>()(
             }
 
             return {
-              messages: {
-                ...state.messages,
-                [sessionId]: updatedMessages,
-              },
+              messages: { ...state.messages, [sessionId]: updatedMessages },
               currentStreamingMessage: content,
             }
           })
@@ -91,10 +101,7 @@ export const useChatStore = create<ChatState>()(
 
         clearMessages: (sessionId) => {
           set((state) => ({
-            messages: {
-              ...state.messages,
-              [sessionId]: [],
-            },
+            messages: { ...state.messages, [sessionId]: [] },
           }))
         },
 
@@ -102,7 +109,7 @@ export const useChatStore = create<ChatState>()(
           const sessionId = crypto.randomUUID()
           const newSession: Session = {
             sessionId,
-            title: 'New conversation',
+            title: '新对话',
             messagePairCount: 0,
             createTime: Date.now(),
           }
@@ -110,33 +117,64 @@ export const useChatStore = create<ChatState>()(
           set((state) => ({
             sessions: [newSession, ...state.sessions],
             currentSessionId: sessionId,
-            messages: {
-              ...state.messages,
-              [sessionId]: [],
-            },
+            messages: { ...state.messages, [sessionId]: [] },
           }))
 
           return sessionId
         },
 
         loadSessions: async () => {
-          // This would load sessions from backend
-          // For now, we'll keep sessions in local storage
+          try {
+            const result = await apiService.getSessions()
+            const sessions = result.sessions.map(toSession)
+            set({ sessions })
+          } catch (error) {
+            console.error('Failed to load sessions:', error)
+          }
         },
 
-        // Chat actions
+        loadSessionMessages: async (sessionId) => {
+          try {
+            const msgs = await apiService.getSessionMessages(sessionId)
+            set((state) => ({
+              messages: { ...state.messages, [sessionId]: msgs },
+            }))
+          } catch (error) {
+            console.error('Failed to load session messages:', error)
+          }
+        },
+
+        deleteSession: async (sessionId) => {
+          try {
+            await apiService.deleteSession(sessionId)
+            set((state) => {
+              const nextMessages = { ...state.messages }
+              delete nextMessages[sessionId]
+
+              return {
+                sessions: state.sessions.filter((s) => s.sessionId !== sessionId),
+                messages: nextMessages,
+                currentSessionId:
+                  state.currentSessionId === sessionId ? null : state.currentSessionId,
+              }
+            })
+          } catch (error) {
+            console.error('Failed to delete session:', error)
+          }
+        },
+
+        // ─── Chat actions ────────────────────────────────────
+
         sendMessage: async (question) => {
           const state = get()
           let sessionId = state.currentSessionId
 
-          // Create new session if none exists
           if (!sessionId) {
             sessionId = state.createSession()
           }
 
           set({ isLoading: true, isStreaming: true })
 
-          // Add user message
           const userMessage: Message = {
             id: crypto.randomUUID(),
             role: 'user',
@@ -145,7 +183,6 @@ export const useChatStore = create<ChatState>()(
           }
           get().addMessage(sessionId, userMessage)
 
-          // Add empty assistant message for streaming
           const assistantMessage: Message = {
             id: crypto.randomUUID(),
             role: 'assistant',
@@ -166,10 +203,10 @@ export const useChatStore = create<ChatState>()(
               }
             }
 
-            // Update session title with first message if it's a new session
+            // Update session title with first message
             const sessions = get().sessions
-            const sessionIndex = sessions.findIndex(s => s.sessionId === sessionId)
-            if (sessionIndex !== -1 && sessions[sessionIndex].title === 'New conversation') {
+            const sessionIndex = sessions.findIndex((s) => s.sessionId === sessionId)
+            if (sessionIndex !== -1 && sessions[sessionIndex].title === '新对话') {
               const title = question.slice(0, 50) + (question.length > 50 ? '...' : '')
               set((state) => ({
                 sessions: state.sessions.map((s, i) =>
@@ -177,9 +214,12 @@ export const useChatStore = create<ChatState>()(
                 ),
               }))
             }
+
+            // Refresh session list from backend to keep metadata in sync
+            get().loadSessions()
           } catch (error) {
             console.error('Send message error:', error)
-            get().updateLastMessage(sessionId, 'Sorry, something went wrong. Please try again.')
+            get().updateLastMessage(sessionId, '抱歉，出了点问题，请重试。')
           } finally {
             set({ isLoading: false, isStreaming: false, currentStreamingMessage: '' })
           }
@@ -195,18 +235,13 @@ export const useChatStore = create<ChatState>()(
           }
         },
 
-        // Upload actions
-        uploadFile: async (file) => {
-          const uploadId = crypto.randomUUID()
+        // ─── Upload actions ──────────────────────────────────
 
+        uploadFile: async (file) => {
           set((state) => ({
             uploadProgress: [
               ...state.uploadProgress,
-              {
-                file,
-                progress: 0,
-                status: 'uploading',
-              },
+              { file, progress: 0, status: 'uploading' },
             ],
           }))
 
@@ -239,12 +274,13 @@ export const useChatStore = create<ChatState>()(
           set({ uploadProgress: [] })
         },
 
-        // Health check
+        // ─── Health check ────────────────────────────────────
+
         checkMilvusHealth: async () => {
           try {
             const health = await apiService.checkMilvusHealth()
             set({ milvusHealthy: health.message === 'ok' })
-          } catch (error) {
+          } catch {
             set({ milvusHealthy: false })
           }
         },

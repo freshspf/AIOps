@@ -8,17 +8,13 @@ export interface Message {
   timestamp: number
 }
 
-export interface ChatPair {
-  userMessage: Message
-  assistantMessage: Message | null
-}
-
 // Session types
 export interface Session {
   sessionId: string
   title: string
   messagePairCount: number
   createTime: number
+  updateTime?: number
 }
 
 // API Request/Response types
@@ -44,11 +40,26 @@ export interface SessionInfo {
   createTime: number
 }
 
+export interface SessionSummary {
+  sessionId: string
+  createTime: number
+  updateTime: number
+  messageCount: number
+  firstMessage: string
+}
+
+export interface SessionListResponse {
+  sessions: SessionSummary[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 export interface FileUploadResponse {
   code: number
   message: string
   data: {
-    originalFilename: string
+    fileName: string
     filePath: string
     fileSize: number
   }
