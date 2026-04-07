@@ -15,6 +15,36 @@
 ### 3. 对话历史持久化 ⭐ 新增
 基于 Redis 的对话历史持久化，支持会话恢复、历史查询和智能摘要压缩。
 
+## 🚀 部署方式
+
+项目现在已经补了第一版容器化部署骨架，默认部署拓扑是：
+
+- `web`：Nginx 提供前端静态资源，并反向代理 `/api`、`/milvus`
+- `app`：Spring Boot 后端
+- `redis`：会话历史持久化
+- `standalone + etcd + minio`：Milvus 依赖
+
+快速启动：
+
+```bash
+cp .env.production.example .env.production
+# 填入 DASHSCOPE_API_KEY
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+```
+
+详细说明见：
+
+- `docs/deployment-guide.md`
+
+如果你是 `2C4G + 宝塔` 这种轻量服务器，优先使用：
+
+```bash
+cp .env.bt.example .env.bt
+docker compose --env-file .env.bt -f docker-compose.bt.yml up -d --build
+```
+
+这套默认只部署前端和后端，Redis 复用现有实例，Milvus 走外部地址。
+
 ## ⭐ 面试亮点
 
 ### 1. 向量索引增量更新 ⭐ 最新

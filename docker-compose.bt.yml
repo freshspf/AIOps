@@ -1,0 +1,37 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: web-ui/Dockerfile
+    container_name: superbiz-web
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "8080:80"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: superbiz-app
+    restart: unless-stopped
+    environment:
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
+      SPRING_SERVER_PORT: ${SPRING_SERVER_PORT:-9900}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      MILVUS_HOST: ${MILVUS_HOST}
+      MILVUS_PORT: ${MILVUS_PORT:-19530}
+      MILVUS_USERNAME: ${MILVUS_USERNAME:-}
+      MILVUS_PASSWORD: ${MILVUS_PASSWORD:-}
+      MILVUS_DATABASE: ${MILVUS_DATABASE:-default}
+      PROMETHEUS_URL: ${PROMETHEUS_URL:-http://127.0.0.1:9090}
+      PROMETHEUS_MOCK_ENABLED: ${PROMETHEUS_MOCK_ENABLED:-true}
+      CLS_MOCK_ENABLED: ${CLS_MOCK_ENABLED:-true}
+    volumes:
+      - app-uploads:/app/uploads
+
+volumes:
+  app-uploads:

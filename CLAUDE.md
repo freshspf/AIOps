@@ -185,6 +185,7 @@ The project-facing docs currently under `docs/` are:
 
 ```
 docs/
+├── deployment-guide.md                # 部署方式：容器拓扑、环境变量、上线步骤
 ├── frontend-features.md                # 前端功能文档：完整功能清单和技术栈
 ├── rag-eval-plan.md                    # RAG 评测计划
 ├── rag-two-stage-retrieval-review.md   # RAG 检索架构 / rerank / query rewrite 说明
@@ -203,6 +204,7 @@ docs/
 
 | 文档路径 | 用途 | 维护场景 |
 |---------|------|----------|
+| `docs/deployment-guide.md` | 部署说明与上线拓扑 | Docker/Compose/反向代理/环境变量变化时更新 |
 | `docs/frontend-features.md` | 前端功能与技术栈 | **前端功能变更时必须更新** |
 | `docs/rag-two-stage-retrieval-review.md` | 当前 RAG 检索设计说明 | **RAG 检索链路变化时必须更新** |
 | `docs/rag-eval-plan.md` | RAG 评测计划 | 评测方案或指标口径变化时更新 |
@@ -242,6 +244,10 @@ docs/
    - 更新 `docs/redis-persistence-session-context.md` 的「已知问题/限制」和「后续优化建议」
    - 如果是重大架构变更，更新对应的技术方案文档
 
+2.1 **部署方式变更时**
+   - 更新 `docs/deployment-guide.md`
+   - 如果新增 Docker、Compose、Nginx、环境变量或上线步骤，也同步更新 `README.md` 的部署部分
+
 3. **RAG 检索链路变更时**
    - 更新 `docs/rag-two-stage-retrieval-review.md`
    - 如果评测口径、实验方案或数据集设计变化，也同步更新 `docs/rag-eval-plan.md` 或 `docs/eval_paln/rag_eval_data_expansion_plan.md`
@@ -280,6 +286,7 @@ docs/
 - [ ] 如果 RAG 检索、query rewrite、HyDE、rerank、评测方案变化 → 更新 docs/rag-two-stage-retrieval-review.md / docs/rag-eval-plan.md / docs/eval_paln/rag_eval_data_expansion_plan.md
 - [ ] 在 API 文档底部「更新日志」添加今日记录
 - [ ] 如果涉及架构变更 → 更新 docs/redis-persistence-session-context.md
+- [ ] 如果部署拓扑、Docker、Compose、Nginx 或环境变量变化 → 更新 docs/deployment-guide.md，并同步检查 README 的部署说明
 - [ ] 如果前端行为变化 → 更新 docs/frontend-features.md
 - [ ] 如果知识库语料变化 → 更新 aiops-docs/ 对应 markdown
 - [ ] 如果离线评测数据、脚本、基线结果变化 → 更新 rag-eval-data/ 对应文件及相关评测文档

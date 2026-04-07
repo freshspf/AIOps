@@ -160,6 +160,7 @@ Project docs under `docs/` are organized as:
 - `docs/api/SuperBizAgent-API.md`: complete backend API document
 - `docs/api/chat-session-api.md`: chat session API details
 - `docs/frontend-features.md`: frontend feature overview and implementation notes
+- `docs/deployment-guide.md`: deployment topology, environment variables, compose usage, and rollout notes
 - `docs/redis-persistence-plan.md`: Redis persistence design and implementation plan
 - `docs/redis-persistence-session-context.md`: current session/persistence architecture context and follow-up notes
 - `docs/rag-two-stage-retrieval-review.md`: current RAG retrieval architecture and review notes
@@ -185,6 +186,7 @@ Documentation placement rules:
 - Evaluation datasets, labels, scripts, or snapshots belong under `rag-eval-data/`
 - Session persistence, Redis, memory, and recovery changes go under the `docs/redis-*.md` family
 - Frontend behavior or interaction changes go to `docs/frontend-features.md`
+- Deployment topology, Docker, compose, proxy, or runtime environment changes go to `docs/deployment-guide.md`
 - New AIOps markdown knowledge content belongs in `aiops-docs/`, not `docs/`
 - Interview scripts and prep notes belong in `简历以及面试话术/`, not `docs/`
 
@@ -206,6 +208,7 @@ Documentation maintenance requirements:
 - If offline eval datasets, labels, scripts, or result baselines change, update the relevant files under `rag-eval-data/` and their companion docs
 - If architecture, persistence flow, or implementation status changes, update `docs/redis-persistence-session-context.md`
 - If frontend behavior changes, update `docs/frontend-features.md`
+- If deployment topology or runtime/deploy scripts changed, update `docs/deployment-guide.md`
 - If knowledge-base source documents change for retrieval content, update files under `aiops-docs/` as needed
 - If new long-lived files change the persistence/session architecture surface, update the relevant persistence docs and the document index in `AGENTS.md` / `CLAUDE.md`
 - If a change resolves or introduces a known limitation, update the corresponding docs in the same task

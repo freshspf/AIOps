@@ -1,0 +1,11 @@
+.git
+.idea
+target
+web-ui/node_modules
+web-ui/dist
+uploads
+volumes
+server.log
+server.pid
+README.md
+简历以及面试话术
