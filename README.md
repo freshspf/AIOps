@@ -7,7 +7,7 @@
 企业级智能业务代理系统，包含三大核心模块：
 
 ### 1. RAG 智能问答
-集成 Milvus 向量数据库和阿里云 DashScope，提供基于检索增强生成的智能问答能力，支持多轮对话和流式输出。
+集成 Milvus 向量数据库和阿里云 DashScope，提供基于检索增强生成的智能问答能力，支持多轮对话、query 改写增强和流式输出。
 
 ### 2. AIOps 智能运维
 基于 AI Agent 的自动化运维系统，采用 Planner-Executor-Replanner 架构，实现告警分析、日志查询、智能诊断和报告生成。
@@ -63,6 +63,12 @@ docker compose --env-file .env.bt -f docker-compose.bt.yml up -d --build
 
 检索链路从"仅召回"升级为"召回 + 精排"，并配套了离线评测与 label-aware 评估脚本，便于持续调优。
 
+### 多轮 Query 改写与 HyDE 增强
+
+在多轮对话里，用户问题常出现“它 / 这个 / 上面提到的方案”这类指代，直接检索会丢上下文。项目在检索入口增加了 QueryRewriteService：结合近期对话和早期摘要，把当前问题改写成可独立理解的检索 query；并可按配置开启 HyDE，先生成一段假设性回答文本，再用该文本 embedding 参与 Milvus 粗排。
+
+该能力与两阶段检索编排在同一链路中协同工作：改写后的 query 用于 rerank，HyDE 文本优先用于粗排（失败自动降级）。相关参数在 `rag.query-rewrite` 下可独立控制（启停、模型、温度、token），既能提升指代场景的召回稳定性，也便于按成本和效果做权衡。
+
 ### 会话历史持久化与压缩恢复
 
 页面刷新或服务重启后对话上下文丢失是常见问题；而多轮历史越积越长，直接全部塞入 prompt 也会快速推高 token 消耗。
@@ -76,6 +82,7 @@ docker compose --env-file .env.bt -f docker-compose.bt.yml up -d --build
 - ✅ **增量索引**: chunk 级差异更新 + 零操作 + 单文件首更迁移
 - ✅ **AIOps 运维**: 智能诊断 + 多 Agent 协作 + 自动报告
 - ✅ **会话持久化**: Redis 存储 + LLM 摘要压缩 + 自动恢复
+- ✅ **Query 改写**: 多轮指代消解 + HyDE 假设文档增强
 - ✅ **两阶段检索**: Milvus 粗排 + rerank 精排 + 文档级限流
 - ✅ **工具集成**: 文档检索、告警查询、日志分析、时间工具
 - ✅ **会话管理**: 会话列表、历史查询、自动清理
