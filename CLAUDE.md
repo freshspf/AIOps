@@ -221,6 +221,8 @@ docs/
 0. **新增功能时**
    - 每次开发新功能或改变已有行为时，都要在同一次任务里同步维护相关文档
    - 不允许把文档更新留到后续补做
+   - 如果这个功能属于项目亮点或面试可讲点，也必须同步更新 `README.md`
+   - `README.md` 的亮点描述统一写成三部分：`痛点`、`解决方式`、`结果/验证`
 
 1. **API 变更时**
    - 更新 `docs/api/SuperBizAgent-API.md`
@@ -261,6 +263,7 @@ docs/
 ## 文档更新检查清单
 
 - [ ] 如果新增功能或调整已有行为 → 更新对应设计/说明/状态文档
+- [ ] 如果这次功能属于项目亮点 → 更新 README.md 的「面试亮点」，按痛点 / 解决方式 / 结果补充
 - [ ] 如果新增/修改/删除 API → 更新 docs/api/SuperBizAgent-API.md
 - [ ] 如果变更聊天相关 API → 同步更新 docs/api/chat-session-api.md
 - [ ] 如果 RAG 检索、query rewrite、HyDE、rerank、评测方案变化 → 更新 docs/rag-two-stage-retrieval-review.md / docs/rag-eval-plan.md / docs/eval_paln/rag_eval_data_expansion_plan.md

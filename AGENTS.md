@@ -188,6 +188,11 @@ Documentation placement rules:
 Documentation maintenance requirements:
 
 - Every new feature or meaningful behavior change must update the corresponding docs in the same task; do not leave documentation follow-up for a later pass.
+- Every interview-worthy feature must also update `README.md` in the same task so the GitHub landing page makes the project highlights obvious at a glance.
+- For `README.md` feature highlights, summarize each new capability using three short parts:
+  - the pain point it solves
+  - the core implementation idea
+  - the resulting effect or validation outcome
 - If any API changes, update `docs/api/SuperBizAgent-API.md`
 - If chat session APIs change, also update `docs/api/chat-session-api.md`
 - If RAG retrieval behavior, ranking strategy, indexing context, or evaluation plan changes, update the corresponding `docs/rag*.md` or `docs/eval_paln/*.md`
@@ -201,6 +206,7 @@ Documentation maintenance requirements:
 When finishing feature work, use this checklist:
 
 - If a new feature was added, update the relevant design, usage, or status docs before considering the task complete
+- If the new feature is a visible project highlight, update `README.md` with a concise `pain point / solution / result` summary
 - If API changed, update the API docs and append an entry to their update log
 - If RAG behavior changed, update the relevant retrieval/eval docs
 - If eval datasets or baselines changed, update `rag-eval-data/` artifacts as needed
