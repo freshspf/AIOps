@@ -132,6 +132,9 @@ SuperBizAgent/
 ├── docs/                                # 项目文档 ⭐
 │   ├── redis-persistence-plan.md        # Redis 持久化方案
 │   ├── redis-persistence-session-context.md  # AI 上下文文档
+│   ├── spring-ai-tools-architecture.md  # Spring AI Tools 封装原理 ⭐
+│   ├── incremental-update-plan.md       # 知识库增量更新方案 ⭐
+│   ├── rag-two-stage-retrieval-review.md # RAG 两阶段检索设计
 │   └── api/
 │       ├── SuperBizAgent-API.md         # 完整 API 文档
 │       └── chat-session-api.md          # 会话 API 详述
@@ -297,6 +300,9 @@ curl http://localhost:9900/milvus/health
 | [CLAUDE.md](CLAUDE.md) | 项目规范与文档索引 |
 | [docs/api/SuperBizAgent-API.md](docs/api/SuperBizAgent-API.md) | 完整 API 文档 |
 | [docs/redis-persistence-plan.md](docs/redis-persistence-plan.md) | Redis 持久化技术方案 |
+| [docs/spring-ai-tools-architecture.md](docs/spring-ai-tools-architecture.md) | Spring AI Tools 封装原理 |
+| [docs/incremental-update-plan.md](docs/incremental-update-plan.md) | 知识库增量更新方案 |
+| [docs/rag-two-stage-retrieval-review.md](docs/rag-two-stage-retrieval-review.md) | RAG 两阶段检索设计说明 |
 
 ## 🔧 开发指南
 
