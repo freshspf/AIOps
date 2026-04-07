@@ -188,8 +188,10 @@ docs/
 ├── frontend-features.md                # 前端功能文档：完整功能清单和技术栈
 ├── rag-eval-plan.md                    # RAG 评测计划
 ├── rag-two-stage-retrieval-review.md   # RAG 检索架构 / rerank / query rewrite 说明
-├── redis-persistence-plan.md           # 技术方案：Redis 持久化完整设计
-├── redis-persistence-session-context.md # 会话上下文：当前实施状态，供其他 AI 继续
+├── redis-persistence-plan.md           # Redis 持久化方案：现状、设计取舍、数据结构
+├── redis-persistence-session-context.md # Redis/会话记忆当前上下文与后续演进方向
+├── spring-ai-tools-architecture.md     # Spring AI Tools 封装原理与 Agent 调用链路
+├── incremental-update-plan.md          # 知识库增量更新方案（chunk 级差异更新）
 ├── eval_paln/
 │   └── rag_eval_data_expansion_plan.md # RAG 评测数据扩充方案
 └── api/
@@ -205,11 +207,15 @@ docs/
 | `docs/rag-two-stage-retrieval-review.md` | 当前 RAG 检索设计说明 | **RAG 检索链路变化时必须更新** |
 | `docs/rag-eval-plan.md` | RAG 评测计划 | 评测方案或指标口径变化时更新 |
 | `docs/eval_paln/rag_eval_data_expansion_plan.md` | RAG 数据扩充与实验计划 | 评测数据集或实验设计变化时更新 |
-| `docs/redis-persistence-plan.md` | 技术方案与实施总结 | 新增功能、架构变更时更新 |
-| `docs/redis-persistence-session-context.md` | AI 会话上下文 | 每次完成工作后更新状态 |
+| `docs/redis-persistence-plan.md` | Redis 持久化方案与当前设计取舍 | 持久化方案、恢复策略、数据结构变化时更新 |
+| `docs/redis-persistence-session-context.md` | 会话/记忆当前上下文 | 会话恢复、memory 分层、限制或后续方向变化时更新 |
+| `docs/spring-ai-tools-architecture.md` | Spring AI Tools 封装原理 | Tool 类变更或 Agent 工具链路变化时更新 |
+| `docs/incremental-update-plan.md` | 知识库增量更新方案 | 切分/索引逻辑变化时更新 |
 | `docs/api/SuperBizAgent-API.md` | 完整 API 文档 | **任何 API 变更时必须更新** |
 | `docs/api/chat-session-api.md` | 聊天会话 API 详述 | 聊天相关 API 变更时更新 |
 | `aiops-docs/*.md` | 向量知识库源文档 | 检索语料内容更新时维护 |
+| `rag-eval-data/docs/experiment_method_overview.md` | RAG 实验简版方法说明 | 评测口径、核心指标、面试讲法变化时更新 |
+| `rag-eval-data/docs/experiment_report_20260329.md` | RAG 实验结果报告 | 评测结论、基线结果、修正结论变化时更新 |
 | `rag-eval-data/*` | 离线评测数据、脚本、结果快照 | 评测基线或数据集变化时维护 |
 | `简历以及面试话术/*` | 面试资料与表达话术 | 仅面试复盘/表达准备时维护 |
 | `CLAUDE.md` | 项目规范与文档索引 | 文档结构变更、规范调整时更新 |
@@ -219,10 +225,13 @@ docs/
 **🔴 强制要求 - 完成任何功能优化后，必须同步更新以下文档：**
 
 0. **新增功能时**
+   - 对于非简单功能，开始实现前先补一份最小方案文档，至少写清：`痛点`、`现状/问题`、`核心方案`、`涉及文件`、`验证方式`、`已知取舍`
+   - 实现完成后，必须把这份方案文档同步更新为“当前真实实现”，补上：`最终代码入口`、`验证结果`、`当前限制`、`后续优化方向`
    - 每次开发新功能或改变已有行为时，都要在同一次任务里同步维护相关文档
    - 不允许把文档更新留到后续补做
    - 如果这个功能属于项目亮点或面试可讲点，也必须同步更新 `README.md`
    - `README.md` 的亮点描述统一写成三部分：`痛点`、`解决方式`、`结果/验证`
+   - `AGENTS.md` 和 `CLAUDE.md` 只维护文档规则、索引和流程，不承担单个功能的过程日志
 
 1. **API 变更时**
    - 更新 `docs/api/SuperBizAgent-API.md`
@@ -237,8 +246,9 @@ docs/
    - 更新 `docs/rag-two-stage-retrieval-review.md`
    - 如果评测口径、实验方案或数据集设计变化，也同步更新 `docs/rag-eval-plan.md` 或 `docs/eval_paln/rag_eval_data_expansion_plan.md`
 
-4. **新增文件/类时**
-   - 在 `docs/redis-persistence-session-context.md` 的「相关文件清单」中补充
+4. **新增长期维护文档或调整文档结构时**
+   - 同步更新 `AGENTS.md` 和 `CLAUDE.md` 里的文档索引与维护规则
+   - 让后续功能变更能准确找到该更新哪份文档
 
 5. **知识库语料变更时**
    - 对应维护 `aiops-docs/` 下的 markdown 文档
@@ -250,7 +260,6 @@ docs/
 
 **🟡 建议行为：**
 
-- 每次会话结束时，在 `redis-persistence-session-context.md` 顶部更新「会话时间」和「状态」
 - 发现新的 Bug 或限制时，及时更新到对应文档的「已知问题」章节
 - 新文档优先放到已有分类下；只有确实不存在合适分类时才新增目录
 - `docs/eval_paln/` 目录名虽然有拼写问题，但当前仓库已使用，除非专门做迁移任务，否则不要顺手改名
@@ -262,8 +271,10 @@ docs/
 ```markdown
 ## 文档更新检查清单
 
+- [ ] 如果这次是非简单功能 → 先有方案文档；完工后把方案文档补成“已实现状态”
 - [ ] 如果新增功能或调整已有行为 → 更新对应设计/说明/状态文档
 - [ ] 如果这次功能属于项目亮点 → 更新 README.md 的「面试亮点」，按痛点 / 解决方式 / 结果补充
+- [ ] 如果新增长期维护文档或调整文档结构 → 同步更新 AGENTS.md / CLAUDE.md 的文档索引与维护规则
 - [ ] 如果新增/修改/删除 API → 更新 docs/api/SuperBizAgent-API.md
 - [ ] 如果变更聊天相关 API → 同步更新 docs/api/chat-session-api.md
 - [ ] 如果 RAG 检索、query rewrite、HyDE、rerank、评测方案变化 → 更新 docs/rag-two-stage-retrieval-review.md / docs/rag-eval-plan.md / docs/eval_paln/rag_eval_data_expansion_plan.md
@@ -272,7 +283,6 @@ docs/
 - [ ] 如果前端行为变化 → 更新 docs/frontend-features.md
 - [ ] 如果知识库语料变化 → 更新 aiops-docs/ 对应 markdown
 - [ ] 如果离线评测数据、脚本、基线结果变化 → 更新 rag-eval-data/ 对应文件及相关评测文档
-- [ ] 如果新增文件 → 更新「相关文件清单」
 - [ ] 如果解决已知问题 → 从「已知问题」移除
 - [ ] 如果发现新问题/限制 → 添加到「已知问题」
 ```

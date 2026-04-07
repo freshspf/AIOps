@@ -161,9 +161,11 @@ Project docs under `docs/` are organized as:
 - `docs/api/chat-session-api.md`: chat session API details
 - `docs/frontend-features.md`: frontend feature overview and implementation notes
 - `docs/redis-persistence-plan.md`: Redis persistence design and implementation plan
-- `docs/redis-persistence-session-context.md`: current session/persistence context and follow-up notes
+- `docs/redis-persistence-session-context.md`: current session/persistence architecture context and follow-up notes
 - `docs/rag-two-stage-retrieval-review.md`: current RAG retrieval architecture and review notes
 - `docs/rag-eval-plan.md`: RAG evaluation plan
+- `docs/incremental-update-plan.md`: vector indexing incremental update plan and implemented diff strategy
+- `docs/spring-ai-tools-architecture.md`: Spring AI tool encapsulation and agent tool-call architecture notes
 - `docs/eval_paln/rag_eval_data_expansion_plan.md`: expanded RAG eval dataset and experiment plan
 
 RAG evaluation assets under `rag-eval-data/` are organized as:
@@ -172,7 +174,8 @@ RAG evaluation assets under `rag-eval-data/` are organized as:
 - `rag-eval-data/queries/`: evaluation query CSV files
 - `rag-eval-data/labels/`: golden labels for retrieval evaluation
 - `rag-eval-data/results/` and `rag-eval-data/results_relaxed/`: saved evaluation outputs
-- `rag-eval-data/docs/`: experiment notes and reports
+- `rag-eval-data/docs/experiment_method_overview.md`: short explanation of the retrieval evaluation method
+- `rag-eval-data/docs/experiment_report_20260329.md`: current saved experiment report and corrected conclusions
 - `rag-eval-data/eval_rag.py`: local evaluation script
 
 Documentation placement rules:
@@ -187,12 +190,16 @@ Documentation placement rules:
 
 Documentation maintenance requirements:
 
+- Use a docs-first workflow for any non-trivial feature: before implementation, create or update a small plan/design doc that states the pain point, current state, core approach, affected files, validation plan, and known tradeoffs.
+- After implementation, update that same feature doc so it reflects the final implemented behavior, actual code entrypoints, validation results, current limitations, and follow-up ideas; do not leave plan docs frozen in a pre-implementation state.
 - Every new feature or meaningful behavior change must update the corresponding docs in the same task; do not leave documentation follow-up for a later pass.
 - Every interview-worthy feature must also update `README.md` in the same task so the GitHub landing page makes the project highlights obvious at a glance.
 - For `README.md` feature highlights, summarize each new capability using three short parts:
   - the pain point it solves
   - the core implementation idea
   - the resulting effect or validation outcome
+- `AGENTS.md` and `CLAUDE.md` should only maintain documentation rules, maintenance workflow, and document index/context; do not use them as feature implementation logs.
+- If a new long-lived feature doc is introduced, or the documentation structure changes, update the relevant document index and maintenance rules in `AGENTS.md` and `CLAUDE.md` in the same task.
 - If any API changes, update `docs/api/SuperBizAgent-API.md`
 - If chat session APIs change, also update `docs/api/chat-session-api.md`
 - If RAG retrieval behavior, ranking strategy, indexing context, or evaluation plan changes, update the corresponding `docs/rag*.md` or `docs/eval_paln/*.md`
@@ -200,13 +207,15 @@ Documentation maintenance requirements:
 - If architecture, persistence flow, or implementation status changes, update `docs/redis-persistence-session-context.md`
 - If frontend behavior changes, update `docs/frontend-features.md`
 - If knowledge-base source documents change for retrieval content, update files under `aiops-docs/` as needed
-- If new project files are introduced for the persistence/session area, update the related file list in `docs/redis-persistence-session-context.md`
+- If new long-lived files change the persistence/session architecture surface, update the relevant persistence docs and the document index in `AGENTS.md` / `CLAUDE.md`
 - If a change resolves or introduces a known limitation, update the corresponding docs in the same task
 
 When finishing feature work, use this checklist:
 
+- If the feature is non-trivial, make sure there is a corresponding plan/feature doc and that it now reflects the implemented result instead of only the initial proposal
 - If a new feature was added, update the relevant design, usage, or status docs before considering the task complete
 - If the new feature is a visible project highlight, update `README.md` with a concise `pain point / solution / result` summary
+- If a new long-lived feature doc was added, or the docs structure changed, update `AGENTS.md` and `CLAUDE.md` to keep the documentation index and maintenance workflow accurate
 - If API changed, update the API docs and append an entry to their update log
 - If RAG behavior changed, update the relevant retrieval/eval docs
 - If eval datasets or baselines changed, update `rag-eval-data/` artifacts as needed
