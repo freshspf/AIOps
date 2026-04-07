@@ -70,11 +70,23 @@ public class FileUploadController {
 
             // 文件上传成功后，自动调用向量索引服务
             try {
-                logger.info("开始为上传文件创建向量索引: {}", filePath);
-                vectorIndexService.indexSingleFile(filePath.toString());
-                logger.info("向量索引创建成功: {}", filePath);
+                // 统一走增量索引：新文件等价于首次全量写入，覆盖更新则按 chunk 差异执行。
+                logger.info("开始为上传文件执行增量索引: {}", filePath);
+                VectorIndexService.IncrementalIndexResult indexingResult =
+                        vectorIndexService.incrementalIndex(filePath.toString());
+                logger.info(
+                        "增量索引完成: file={}, old={}, new={}, unchanged={}, deleted={}, inserted={}, rebuilt={}, fallback={}",
+                        filePath,
+                        indexingResult.getOldChunkCount(),
+                        indexingResult.getNewChunkCount(),
+                        indexingResult.getUnchangedCount(),
+                        indexingResult.getDeletedCount(),
+                        indexingResult.getInsertedCount(),
+                        indexingResult.getRebuiltCount(),
+                        indexingResult.isFallbackToFullRebuild()
+                );
             } catch (Exception e) {
-                logger.error("向量索引创建失败: {}, 错误: {}", filePath, e.getMessage(), e);
+                logger.error("增量索引失败: {}, 错误: {}", filePath, e.getMessage(), e);
                 // 注意：即使索引失败，文件上传仍然成功，只是记录错误日志
                 // 可以根据业务需求决定是否要删除文件或返回错误
             }
