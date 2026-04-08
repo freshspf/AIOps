@@ -8,6 +8,7 @@ import type {
   MilvusHealthResponse,
   SSEEvent,
 } from '@/types'
+import { generateId } from '@/lib/utils'
 
 const API_BASE_URL = '/api'
 const MILVUS_BASE_URL = '/milvus'
@@ -125,7 +126,7 @@ class APIService {
     if (!response.ok) throw new Error(`Get messages failed: ${response.statusText}`)
     const result = await response.json()
     return (result.data || []).map((m: { role: string; content: string; timestamp: number }) => ({
-      id: crypto.randomUUID(),
+      id: generateId(),
       role: m.role as Message['role'],
       content: m.content,
       timestamp: m.timestamp,

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import type { Message, Session, UploadProgress } from '@/types'
 import { apiService } from '@/services/api'
+import { generateId } from '@/lib/utils'
 
 interface ChatState {
   // Current session
@@ -106,7 +107,7 @@ export const useChatStore = create<ChatState>()(
         },
 
         createSession: () => {
-          const sessionId = crypto.randomUUID()
+          const sessionId = generateId()
           const newSession: Session = {
             sessionId,
             title: '新对话',
@@ -176,7 +177,7 @@ export const useChatStore = create<ChatState>()(
           set({ isLoading: true, isStreaming: true })
 
           const userMessage: Message = {
-            id: crypto.randomUUID(),
+            id: generateId(),
             role: 'user',
             content: question,
             timestamp: Date.now(),
@@ -184,7 +185,7 @@ export const useChatStore = create<ChatState>()(
           get().addMessage(sessionId, userMessage)
 
           const assistantMessage: Message = {
-            id: crypto.randomUUID(),
+            id: generateId(),
             role: 'assistant',
             content: '',
             timestamp: Date.now(),

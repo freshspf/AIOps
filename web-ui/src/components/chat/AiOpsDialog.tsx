@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { apiService } from '@/services/api'
-import { cn } from '@/lib/utils'
+import { cn, generateId } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { CodeBlock } from './CodeBlock'
@@ -117,7 +117,7 @@ export function AiOpsDialog({ open, onOpenChange }: AiOpsDialogProps) {
           setSteps((prev) => [
             ...prev,
             {
-              id: crypto.randomUUID(),
+              id: generateId(),
               type: 'error',
               content: `❌ 分析出错: ${event.data}`,
               timestamp: Date.now(),
